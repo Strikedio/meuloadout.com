@@ -1,0 +1,10 @@
+armaPrincipal
+armaSecundaria
+cinto
+peito
+corpoSuperior
+corpoInferior
+pes
+cabeca
+maos
+costas
