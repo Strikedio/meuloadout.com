@@ -1,0 +1,7 @@
+marca
+modelo
+cano
+boca
+redDot
+miraFerro
+magazine
