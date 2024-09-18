@@ -3,48 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Meu PC</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>Meu Loudout</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: url('imagens/soldados-do-exercito.jpg') no-repeat center center fixed;
+            background-size: cover;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.9); /* Cor de fundo branca com opacidade */
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            width: 300px;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input[type="text"],
+        input[type="password"],
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            background-color: #28a745;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+    </style>
 </head>
 <body>
-    <header>
-        <h1>Meu PC</h1>
-        <nav>
-            <ul>
-                <li><a href="#especificacoes">Especificações</a></li>
-                <li><a href="#sobre">Sobre</a></li>
-            </ul>
-        </nav>
-    </header>
-
-    <main>
-        <section id="especificacoes">
-            <h2>Especificações do PC</h2>
-            <form id="formEspecificacoes">
-                <label for="processador">Processador:</label>
-                <input type="text" id="processador" required>
-
-                <label for="memoria">Memória RAM:</label>
-                <input type="text" id="memoria" required>
-
-                <label for="armazenamento">Armazenamento:</label>
-                <input type="text" id="armazenamento" required>
-
-                <button type="submit">Salvar Especificações</button>
-            </form>
-            <div id="resultado"></div>
-        </section>
-
-        <section id="sobre">
-            <h2>Sobre</h2>
-            <p>Este site permite que você registre as especificações do seu PC de forma simples e rápida.</p>
-        </section>
-    </main>
-
-    <footer>
-        <p>&copy; 2024 Meu PC</p>
-    </footer>
-
-    <script src="script.js"></script>
+    <div class="container">
+        <h1>Login</h1>
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="username">Usuário:</label>
+                <input type="text" id="username" name="username" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Senha:</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <button type="submit">Entrar</button>
+        </form>
+        <div class="form-group" style="margin-top: 20px;">
+            <label for="itemList">Selecione um item:</label>
+            <select id="itemList" name="itemList">
+                <option value="item1">Item 1</option>
+                <option value="item2">Item 2</option>
+                <option value="item3">Item 3</option>
+                <option value="item4">Item 4</option>
+            </select>
+        </div>
+    </div>
 </body>
 </html>
