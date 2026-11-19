@@ -1,0 +1,270 @@
+/* Meu Loadout — tema tático: verde-oliva escuro, areia e laranja de sinalização */
+:root {
+  --fundo: #14170f;
+  --fundo-2: #1c2016;
+  --cartao: #232819;
+  --borda: #343b26;
+  --texto: #e7e3d4;
+  --texto-suave: #a6a68f;
+  --areia: #c8a85a;
+  --areia-forte: #e2c070;
+  --laranja: #ff7a1a;
+  --verde-ok: #7fae4a;
+  --corpo: #3a4129;
+  --corpo-borda: #586240;
+  --raio: 10px;
+  --fonte: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --fonte-titulo: "Bahnschrift", "DIN Alternate", "Segoe UI", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--fonte);
+  color: var(--texto);
+  background:
+    radial-gradient(1200px 600px at 20% -10%, #2a3120 0%, transparent 60%),
+    repeating-linear-gradient(45deg, transparent 0 22px, rgba(255,255,255,0.012) 22px 23px),
+    var(--fundo);
+  min-height: 100vh;
+}
+
+/* ---------- Topo ---------- */
+.topo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 24px;
+  padding: 18px 28px;
+  border-bottom: 1px solid var(--borda);
+  background: rgba(20, 23, 15, 0.85);
+}
+.marca { display: flex; align-items: center; gap: 10px; }
+.marca-icone { color: var(--laranja); font-size: 18px; }
+.marca-nome {
+  font-family: var(--fonte-titulo);
+  font-size: 24px;
+  letter-spacing: 0.14em;
+  color: var(--texto-suave);
+}
+.marca-nome strong { color: var(--areia); font-weight: 700; }
+.topo-sub { margin: 0; color: var(--texto-suave); font-size: 14px; }
+
+/* ---------- Layout ---------- */
+.painel {
+  display: grid;
+  grid-template-columns: minmax(260px, 340px) minmax(300px, 1fr) minmax(300px, 380px);
+  gap: 18px;
+  padding: 18px 28px 28px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+.bloco {
+  background: var(--fundo-2);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  padding: 18px;
+  min-width: 0;
+}
+.bloco h2 {
+  margin: 0 0 4px;
+  font-family: var(--fonte-titulo);
+  font-size: 15px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--areia);
+}
+.dica { margin: 0 0 14px; color: var(--texto-suave); font-size: 13px; }
+
+/* ---------- Silhueta ---------- */
+.bloco-silhueta { display: flex; flex-direction: column; align-items: center; }
+#silhueta { width: 100%; max-width: 300px; height: auto; display: block; }
+
+#silhueta .decor { fill: var(--corpo); stroke: var(--corpo-borda); stroke-width: 1.5; }
+#silhueta .regiao { cursor: pointer; outline: none; }
+#silhueta .regiao,
+#silhueta .regiao * {
+  fill: var(--corpo);
+  stroke: var(--corpo-borda);
+  stroke-width: 1.5;
+  transition: fill 0.15s, stroke 0.15s;
+}
+#silhueta [data-cat="peito"] { fill: #444b30; }
+#silhueta [data-cat="cinto"] { fill: #2e331f; }
+#silhueta [data-cat="costas"] { fill: #2c3220; }
+#silhueta [data-cat="armaPrincipal"] *,
+#silhueta [data-cat="armaSecundaria"] * { fill: #26291f; stroke: #4a4f3c; }
+
+#silhueta .regiao.tem-item,
+#silhueta .regiao.tem-item * { fill: #4e5f2c; stroke: var(--verde-ok); }
+
+#silhueta .regiao:hover,
+#silhueta .regiao:hover *,
+#silhueta .regiao:focus-visible,
+#silhueta .regiao:focus-visible * { fill: #6b5a2c; stroke: var(--areia-forte); }
+
+#silhueta .regiao.ativa,
+#silhueta .regiao.ativa * { fill: #8a6d2a; stroke: var(--laranja); stroke-width: 2.5; }
+
+.atalhos {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 14px;
+}
+.atalho {
+  font: inherit;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--borda);
+  background: var(--cartao);
+  color: var(--texto-suave);
+  cursor: pointer;
+}
+.atalho:hover { color: var(--texto); border-color: var(--areia); }
+.atalho.tem-item { border-color: var(--verde-ok); color: var(--texto); }
+.atalho.ativa { background: var(--areia); border-color: var(--areia); color: #1a1a10; font-weight: 600; }
+
+/* ---------- Peças ---------- */
+.grupo-titulo {
+  margin: 16px 0 8px;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--texto-suave);
+  border-bottom: 1px dashed var(--borda);
+  padding-bottom: 4px;
+}
+.grupo-titulo:first-child { margin-top: 0; }
+.peca {
+  display: grid;
+  grid-template-columns: 1fr minmax(120px, 190px) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background: var(--cartao);
+  border: 1px solid var(--borda);
+  border-radius: 8px;
+}
+.peca.no-loadout { border-left: 3px solid var(--verde-ok); }
+.peca-grupo { display: none; }
+.peca-nome { margin: 0; font-size: 14px; font-weight: 600; }
+.peca.no-loadout .peca-nome::after { content: "  ✓"; color: var(--verde-ok); }
+
+input[type="text"] {
+  width: 100%;
+  font: inherit;
+  font-size: 13px;
+  padding: 8px 10px;
+  color: var(--texto);
+  background: var(--fundo);
+  border: 1px solid var(--borda);
+  border-radius: 6px;
+}
+input[type="text"]:focus { outline: 2px solid var(--areia); outline-offset: 0; border-color: transparent; }
+input::placeholder { color: #6f705e; }
+
+/* ---------- Botões ---------- */
+.btn {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn-adicionar { background: var(--areia); color: #1a1a10; }
+.btn-adicionar:hover { background: var(--areia-forte); }
+.btn-principal { background: var(--laranja); color: #1a1208; flex: 1; }
+.btn-principal:hover { filter: brightness(1.08); }
+.btn-secundario { background: transparent; color: var(--texto-suave); border-color: var(--borda); }
+.btn-secundario:hover { color: var(--texto); border-color: var(--texto-suave); }
+.btn:focus-visible, .atalho:focus-visible, .btn-remover:focus-visible { outline: 2px solid var(--laranja); outline-offset: 2px; }
+
+/* ---------- Loadout ---------- */
+.loadout-cabecalho { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.contador {
+  min-width: 28px;
+  text-align: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--cartao);
+  border: 1px solid var(--borda);
+  color: var(--areia);
+  font-weight: 700;
+  font-size: 13px;
+}
+.campo-nome { display: block; margin-bottom: 12px; }
+.campo-nome span { display: block; font-size: 12px; color: var(--texto-suave); margin-bottom: 4px; }
+
+.loadout-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.entrada {
+  padding: 10px 12px;
+  background: var(--cartao);
+  border: 1px solid var(--borda);
+  border-radius: 8px;
+}
+.entrada-topo { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
+.entrada-cat {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--texto-suave);
+}
+.entrada strong { font-size: 14px; }
+.btn-remover {
+  font-size: 18px;
+  line-height: 1;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--borda);
+  background: transparent;
+  color: var(--texto-suave);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.btn-remover:hover { color: #ff9b8a; border-color: #ff9b8a; }
+.entrada-lojas { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.entrada-lojas a {
+  font-size: 12px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--areia);
+  color: var(--areia);
+  text-decoration: none;
+}
+.entrada-lojas a:hover { background: var(--areia); color: #1a1a10; }
+
+.vazio { color: var(--texto-suave); font-size: 13px; margin: 6px 0 0; }
+.acoes { display: flex; gap: 8px; margin-top: 16px; }
+.aviso { min-height: 1.4em; margin: 10px 0 0; font-size: 13px; color: var(--areia-forte); }
+
+/* ---------- Rodapé ---------- */
+.rodape {
+  text-align: center;
+  padding: 10px 28px 28px;
+  color: #77786a;
+  font-size: 12px;
+}
+.rodape p { margin: 4px 0; }
+
+/* ---------- Telas menores ---------- */
+@media (max-width: 1100px) {
+  .painel { grid-template-columns: minmax(240px, 300px) 1fr; }
+  .bloco-loadout { grid-column: 1 / -1; }
+}
+@media (max-width: 700px) {
+  .topo, .painel { padding-left: 14px; padding-right: 14px; }
+  .painel { grid-template-columns: 1fr; }
+  #silhueta { max-width: 220px; }
+  .peca { grid-template-columns: 1fr auto; }
+  .peca-detalhe { grid-column: 1 / -1; grid-row: 2; }
+}

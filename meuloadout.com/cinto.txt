@@ -1,7 +1,0 @@
-marca
-modelo
-quantidadeModulos
-portLanterna
-portMag
-portTorniket
-coldre
