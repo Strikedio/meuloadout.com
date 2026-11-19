@@ -50,15 +50,22 @@
   function paraCompacto() {
     return { v: 2, n: estado.nome, i: estado.itens.map((x) => (x.p ? x.p : [x.v, x.m])) };
   }
+  // Limites de segurança: um link gigante ou com lixo não deve travar a página
+  const MAX_LINK = 6000;   // caracteres depois de "#l="
+  const MAX_ITENS = 120;
+  function textoLimpo(t, max) {
+    // remove caracteres de controle e invisíveis de direção (usados para disfarçar texto)
+    return String(t).replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2066-\u2069]/g, "").trim().slice(0, max);
+  }
   function deCompacto(o) {
-    const lista = o && Array.isArray(o.i) ? o.i : [];
+    const lista = o && Array.isArray(o.i) ? o.i.slice(0, MAX_ITENS) : [];
     const itens = [];
     lista.forEach((x) => {
       if (typeof x === "string" && prodPorId.has(x)) itens.push({ v: prodPorId.get(x).vaga, p: x });
-      else if (Array.isArray(x) && vagaPorId.has(x[0]) && typeof x[1] === "string" && x[1].trim())
-        itens.push({ v: x[0], m: x[1].slice(0, 80) });
+      else if (Array.isArray(x) && typeof x[0] === "string" && vagaPorId.has(x[0]) && typeof x[1] === "string" && textoLimpo(x[1], 80))
+        itens.push({ v: x[0], m: textoLimpo(x[1], 80) });
     });
-    return { nome: o && typeof o.n === "string" ? o.n.slice(0, 60) : "", itens: itens };
+    return { nome: o && typeof o.n === "string" ? textoLimpo(o.n, 60) : "", itens: itens };
   }
   function salvar() {
     const hash = estado.itens.length || estado.nome ? "#l=" + codificar(paraCompacto()) : "";
@@ -66,7 +73,7 @@
     try { localStorage.setItem(CHAVE_LOCAL, JSON.stringify(paraCompacto())); } catch (e) { /* sem armazenamento */ }
   }
   function carregar() {
-    const m = location.hash.match(/^#l=([A-Za-z0-9_-]+)$/);
+    const m = location.hash.length <= MAX_LINK + 3 && location.hash.match(/^#l=([A-Za-z0-9_-]+)$/);
     if (m) { try { return deCompacto(decodificar(m[1])); } catch (e) { /* link inválido */ } }
     try {
       const s = localStorage.getItem(CHAVE_LOCAL);
@@ -217,6 +224,7 @@
   // ---------- Ações no loadout ----------
   function escolher(vagaId, item) {
     const vaga = vagaPorId.get(vagaId);
+    if (estado.itens.length >= MAX_ITENS) { mostrarAviso("Limite de " + MAX_ITENS + " peças por loadout."); return; }
     if (!vaga.multiplo) estado.itens = estado.itens.filter((x) => x.v !== vagaId);
     else if (item.p && estado.itens.some((x) => x.p === item.p)) return;
     estado.itens.push(Object.assign({ v: vagaId }, item));
@@ -418,7 +426,7 @@
     montarSilhueta();
 
     const campoNome = $("#nome-loadout");
-    campoNome.addEventListener("input", () => { estado.nome = campoNome.value.slice(0, 60); salvar(); });
+    campoNome.addEventListener("input", () => { estado.nome = textoLimpo(campoNome.value, 60); salvar(); });
     $("#btn-copiar").addEventListener("click", copiarLink);
     $("#btn-limpar").addEventListener("click", () => {
       if (!estado.itens.length && !estado.nome) return;
@@ -436,7 +444,7 @@
     document.addEventListener("keydown", (e) => { if (e.key === "Escape" && sel) fecharSeletor(); });
     $("#manual").addEventListener("submit", (e) => {
       e.preventDefault();
-      const nome = $("#manual-nome").value.trim();
+      const nome = textoLimpo($("#manual-nome").value, 80);
       if (!nome) return;
       const vagaId = sel.vaga.id;
       escolher(vagaId, { m: nome.slice(0, 80) });

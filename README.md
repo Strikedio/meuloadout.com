@@ -27,6 +27,8 @@ Não precisa instalar nada além do que você já tem.
 
 ```
 index.html        página única do site
+_headers          cabeçalhos de segurança (Cloudflare Pages / Netlify)
+SECURITY.md       como reportar falhas e regras de segurança do projeto
 css/estilo.css    visual (cores, layout, celular)
 js/catalogo.js    categorias e peças: edite aqui para incluir ou mudar peças
 js/lojas.js       lojas pesquisadas: aqui entram depois os links de afiliado e as lojas parceiras
