@@ -1,6 +1,25 @@
+# Sistema
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Editores
 .vscode/
+.idea/
+
+# Dependências e builds futuros
 node_modules/
+dist/
 *.log
+
+# Segredos: NUNCA versionar
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+credentials*.json
+secrets*.json
+.dev.vars
+.wrangler/
