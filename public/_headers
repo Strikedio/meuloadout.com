@@ -12,9 +12,3 @@
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Resource-Policy: same-origin
   Strict-Transport-Security: max-age=31536000
-
-# Arquivos internos do repositório não precisam ser servidos
-/README.md
-  X-Robots-Tag: noindex
-/SECURITY.md
-  X-Robots-Tag: noindex

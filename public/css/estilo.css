@@ -236,6 +236,29 @@ input[type="text"] {
 input[type="text"]:focus { outline: 2px solid var(--areia); outline-offset: 0; border-color: transparent; }
 input::placeholder { color: #6f705e; }
 
+/* ---------- Preços ---------- */
+.total {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px;
+  padding: 10px 14px; margin-bottom: 10px;
+  background: var(--cartao); border: 1px solid var(--borda); border-left: 3px solid var(--laranja); border-radius: 8px;
+}
+.total[hidden] { display: none; }
+.total-rotulo { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--texto-suave); }
+.total-valor { font-family: var(--fonte-titulo); font-size: 22px; color: var(--texto); }
+.total small { color: var(--texto-suave); font-size: 12px; }
+.escolhido-preco { margin-top: 4px; font-size: 13px; }
+.preco strong { color: var(--areia-forte); }
+.preco a { color: var(--areia); }
+.preco small, .preco-vazio { color: var(--texto-suave); font-size: 12px; }
+.preco-antigo small, small.preco-antigo { color: var(--amarelo); }
+.col-preco { white-space: nowrap; }
+.col-preco strong { display: block; color: var(--areia-forte); }
+.col-preco small { display: block; font-size: 11px; color: var(--texto-suave); }
+.filtro-preco {
+  width: 100%; font: inherit; font-size: 13px; padding: 6px 8px;
+  color: var(--texto); background: var(--fundo); border: 1px solid var(--borda); border-radius: 6px;
+}
+
 /* ---------- Botões ---------- */
 .btn {
   font: inherit;
