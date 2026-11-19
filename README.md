@@ -13,27 +13,45 @@ Site self-service para operadores de airsoft montarem o próprio loadout peça p
 
 ## Rodar no seu PC (Windows)
 
-Não precisa instalar nada além do que você já tem.
+O site fica na pasta `public/`.
 
-**Opção A, mais rápida:** dê dois cliques em `index.html`. O site abre no navegador.
+**Opção A, mais rápida:** dê dois cliques em `public/index.html`.
 
-**Opção B, recomendada para desenvolver (atualiza sozinho ao salvar):**
+**Opção B, recomendada para desenvolver (atualiza sozinho ao salvar):** no VS Code, instale a extensão **Live Server**, clique com o botão direito em `public/index.html` e escolha **Open with Live Server**.
 
-1. No VS Code, abra a pasta do projeto (`Arquivo > Abrir Pasta...`).
-2. Instale a extensão **Live Server** (de Ritwick Dey).
-3. Clique com o botão direito em `index.html` e escolha **Open with Live Server**.
+As rotas `/api/...` (preços do Mercado Livre) só funcionam no site publicado, porque rodam no Cloudflare.
 
 ## Estrutura
 
 ```
-index.html        página única do site
-_headers          cabeçalhos de segurança (Cloudflare Pages / Netlify)
-SECURITY.md       como reportar falhas e regras de segurança do projeto
-css/estilo.css    visual (cores, layout, celular)
-js/catalogo.js    categorias e peças: edite aqui para incluir ou mudar peças
-js/lojas.js       lojas pesquisadas: aqui entram depois os links de afiliado e as lojas parceiras
-js/app.js         lógica (seleção, loadout, link compartilhável)
+public/                 o site (é o que o Cloudflare publica)
+  index.html            página única
+  _headers              cabeçalhos de segurança
+  css/estilo.css        visual
+  js/catalogo.js        vagas, produtos e regras de compatibilidade
+  js/lojas.js           lojas pesquisadas / links de afiliado
+  js/app.js             lógica da página
+functions/api/          rotas do servidor (Cloudflare Pages Functions)
+  ml/login.js           liga a conta do Mercado Livre (só administrador)
+  ml/callback.js        retorno do login do ML
+  ml/teste.js           diagnóstico da API do ML (só administrador)
+lib/ml.js               código compartilhado da integração com o ML
+SECURITY.md             como reportar falhas e regras de segurança
 ```
+
+## Integração com o Mercado Livre
+
+As chaves ficam **somente** nas configurações do projeto no Cloudflare (Settings → Variables and Secrets), nunca no código:
+
+| Nome | Tipo | O que é |
+|---|---|---|
+| `ML_CLIENT_ID` | Text | ID do app no portal de desenvolvedores do ML |
+| `ML_CLIENT_SECRET` | **Secret** | Chave secreta do app |
+| `ADMIN_KEY` | **Secret** | Senha longa (40+ caracteres) para as rotas de administração |
+| `ML_KV` | Binding KV | Onde o token do ML fica guardado |
+
+Para ligar a conta: abra `https://meuloadout.com/api/ml/login?key=SUA_ADMIN_KEY`.
+Para testar: `https://meuloadout.com/api/ml/teste?key=SUA_ADMIN_KEY`.
 
 ### Incluir um produto
 
