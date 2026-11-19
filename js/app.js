@@ -1,41 +1,41 @@
 /*
- * Meu Loadout — lógica da página
- * O loadout fica guardado no próprio link (depois do #), então dá para
- * salvar nos favoritos ou mandar para outra pessoa sem precisar de login.
+ * Meu Loadout — lógica da página (v2)
+ * - Tabela de montagem com uma linha por vaga (arma, mira, magazines...)
+ * - Cada vaga abre a lista de produtos com filtros e checagem de compatibilidade
+ * - O loadout fica guardado no próprio link (depois do #): salvar e compartilhar sem login
  */
 (function () {
   "use strict";
 
-  const CATALOGO = window.MEULOADOUT_CATALOGO || [];
+  const DADOS = window.MEULOADOUT || { regioes: [], vagas: [], produtos: [] };
   const LOJAS = window.MEULOADOUT_LOJAS || [];
-  const CHAVE_LOCAL = "meuloadout:v1";
+  const CHAVE_LOCAL = "meuloadout:v2";
 
-  // Índices para achar categoria/item rápido
-  const categoriaPorId = new Map(CATALOGO.map((c) => [c.id, c]));
-  function acharItem(catId, itemId) {
-    const cat = categoriaPorId.get(catId);
-    return cat ? cat.itens.find((i) => i.id === itemId) : undefined;
+  const vagaPorId = new Map(DADOS.vagas.map((v) => [v.id, v]));
+  const prodPorId = new Map(DADOS.produtos.map((p) => [p.id, p]));
+  const regiaoPorId = new Map(DADOS.regioes.map((r) => [r.id, r]));
+
+  // estado.itens: { v: vagaId, p: produtoId }  ou  { v: vagaId, m: "nome digitado" }
+  let estado = { nome: "", itens: [] };
+
+  // ---------- Atalhos de DOM ----------
+  const $ = (sel) => document.querySelector(sel);
+  function el(tag, attrs, ...filhos) {
+    const n = document.createElement(tag);
+    if (attrs) {
+      for (const [k, val] of Object.entries(attrs)) {
+        if (val == null || val === false) continue;
+        if (k === "class") n.className = val;
+        else if (k === "text") n.textContent = val;
+        else if (k.startsWith("on")) n.addEventListener(k.slice(2), val);
+        else n.setAttribute(k, val === true ? "" : val);
+      }
+    }
+    filhos.flat().forEach((f) => f != null && n.append(f));
+    return n;
   }
 
-  // Estado: { nome: "", itens: [{ c: catId, i: itemId, d: detalhe }] }
-  let estado = { nome: "", itens: [] };
-  let categoriaAtual = null;
-
-  // ---------- Elementos ----------
-  const $ = (sel) => document.querySelector(sel);
-  const svg = $("#silhueta");
-  const atalhos = $("#atalhos");
-  const pecasTitulo = $("#pecas-titulo");
-  const pecasDica = $("#pecas-dica");
-  const pecasLista = $("#pecas-lista");
-  const tplPeca = $("#tpl-peca");
-  const loadoutLista = $("#loadout-lista");
-  const loadoutVazio = $("#loadout-vazio");
-  const contador = $("#contador");
-  const campoNome = $("#nome-loadout");
-  const aviso = $("#aviso");
-
-  // ---------- Link compartilhável (base64url de JSON) ----------
+  // ---------- Link compartilhável ----------
   function codificar(obj) {
     const bytes = new TextEncoder().encode(JSON.stringify(obj));
     let bin = "";
@@ -45,269 +45,427 @@
   function decodificar(texto) {
     const b64 = texto.replace(/-/g, "+").replace(/_/g, "/");
     const bin = atob(b64 + "===".slice((b64.length + 3) % 4));
-    const bytes = Uint8Array.from(bin, (ch) => ch.charCodeAt(0));
-    return JSON.parse(new TextDecoder().decode(bytes));
+    return JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0))));
   }
-
-  function estadoParaCompacto() {
-    return { n: estado.nome, l: estado.itens.map((x) => (x.d ? [x.c, x.i, x.d] : [x.c, x.i])) };
+  function paraCompacto() {
+    return { v: 2, n: estado.nome, i: estado.itens.map((x) => (x.p ? x.p : [x.v, x.m])) };
   }
-  function compactoParaEstado(obj) {
-    const itens = Array.isArray(obj && obj.l) ? obj.l : [];
-    return {
-      nome: typeof obj.n === "string" ? obj.n.slice(0, 60) : "",
-      itens: itens
-        .filter((x) => Array.isArray(x) && acharItem(x[0], x[1]))
-        .map((x) => ({ c: x[0], i: x[1], d: typeof x[2] === "string" ? x[2].slice(0, 60) : "" })),
-    };
+  function deCompacto(o) {
+    const lista = o && Array.isArray(o.i) ? o.i : [];
+    const itens = [];
+    lista.forEach((x) => {
+      if (typeof x === "string" && prodPorId.has(x)) itens.push({ v: prodPorId.get(x).vaga, p: x });
+      else if (Array.isArray(x) && vagaPorId.has(x[0]) && typeof x[1] === "string" && x[1].trim())
+        itens.push({ v: x[0], m: x[1].slice(0, 80) });
+    });
+    return { nome: o && typeof o.n === "string" ? o.n.slice(0, 60) : "", itens: itens };
   }
-
   function salvar() {
-    const hash = estado.itens.length || estado.nome ? "#l=" + codificar(estadoParaCompacto()) : "";
+    const hash = estado.itens.length || estado.nome ? "#l=" + codificar(paraCompacto()) : "";
     history.replaceState(null, "", location.pathname + location.search + hash);
-    try {
-      localStorage.setItem(CHAVE_LOCAL, JSON.stringify(estadoParaCompacto()));
-    } catch (e) { /* navegador sem armazenamento: o link já guarda tudo */ }
+    try { localStorage.setItem(CHAVE_LOCAL, JSON.stringify(paraCompacto())); } catch (e) { /* sem armazenamento */ }
   }
-
   function carregar() {
     const m = location.hash.match(/^#l=([A-Za-z0-9_-]+)$/);
-    if (m) {
-      try { return compactoParaEstado(decodificar(m[1])); } catch (e) { /* link inválido */ }
-    }
+    if (m) { try { return deCompacto(decodificar(m[1])); } catch (e) { /* link inválido */ } }
     try {
-      const salvo = localStorage.getItem(CHAVE_LOCAL);
-      if (salvo) return compactoParaEstado(JSON.parse(salvo));
+      const s = localStorage.getItem(CHAVE_LOCAL);
+      if (s) return deCompacto(JSON.parse(s));
     } catch (e) { /* ignora */ }
     return { nome: "", itens: [] };
   }
 
-  // ---------- Busca nas lojas ----------
-  function termoBusca(entrada) {
-    const item = acharItem(entrada.c, entrada.i);
-    return entrada.d ? item.busca + " " + entrada.d : item.busca;
-  }
+  // ---------- Lojas ----------
   function urlLoja(loja, termo) {
     const t = loja.formato === "hifen"
       ? encodeURIComponent(termo.trim().replace(/\s+/g, "-"))
       : encodeURIComponent(termo.trim());
     return loja.url.replace("{q}", t);
   }
-
-  // ---------- Categorias ----------
-  function montarAtalhos() {
-    CATALOGO.forEach((cat) => {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "atalho";
-      b.dataset.cat = cat.id;
-      b.textContent = cat.nome;
-      b.addEventListener("click", () => selecionarCategoria(cat.id));
-      atalhos.appendChild(b);
-    });
+  function chipsLojas(termo) {
+    return el("div", { class: "lojas" },
+      LOJAS.map((l) => el("a", { href: urlLoja(l, termo), target: "_blank", rel: "noopener noreferrer", text: l.nome })));
   }
 
-  function selecionarCategoria(catId) {
-    const cat = categoriaPorId.get(catId);
-    if (!cat) return;
-    categoriaAtual = catId;
-
-    document.querySelectorAll("[data-cat]").forEach((el) =>
-      el.classList.toggle("ativa", el.dataset.cat === catId)
-    );
-
-    pecasTitulo.textContent = cat.nome;
-    pecasDica.textContent = "Escolha a peça. Se já souber a marca ou o modelo, escreva para refinar a busca.";
-    pecasLista.innerHTML = "";
-
-    // Agrupa os itens por "grupo"
-    const grupos = new Map();
-    cat.itens.forEach((it) => {
-      if (!grupos.has(it.grupo)) grupos.set(it.grupo, []);
-      grupos.get(it.grupo).push(it);
+  // ---------- Compatibilidade ----------
+  function produtosEscolhidos() {
+    return estado.itens.filter((x) => x.p).map((x) => prodPorId.get(x.p));
+  }
+  function rotuloCampo(vagaId, campo) {
+    const v = vagaPorId.get(vagaId);
+    const c = v && v.colunas.find((c) => c[0] === campo);
+    return c ? c[1].toLowerCase() : campo;
+  }
+  function textoConflito(dono, alvo, r) {
+    if (r.msg) return dono.nome + " × " + alvo.nome + ": " + r.msg;
+    return dono.nome + " é para " + r.aceita.join(" / ") + ", mas " + alvo.nome + " é " +
+      (alvo.a[r.campo] || "—") + " (" + rotuloCampo(alvo.vaga, r.campo) + ").";
+  }
+  // Checa as regras do "dono" contra o "alvo"
+  function checar(dono, alvo, saida) {
+    (dono.req || []).forEach((r) => {
+      if (r.alvo !== alvo.vaga || dono.id === alvo.id) return;
+      if (!r.aceita.includes(alvo.a[r.campo])) saida.push({ nivel: r.nivel, texto: textoConflito(dono, alvo, r) });
     });
-
-    grupos.forEach((itens, nomeGrupo) => {
-      const h = document.createElement("h4");
-      h.className = "grupo-titulo";
-      h.textContent = nomeGrupo;
-      pecasLista.appendChild(h);
-
-      itens.forEach((it) => {
-        const no = tplPeca.content.firstElementChild.cloneNode(true);
-        no.querySelector(".peca-grupo").textContent = nomeGrupo;
-        no.querySelector(".peca-nome").textContent = it.nome;
-        const campo = no.querySelector(".peca-detalhe");
-        const botao = no.querySelector(".btn-adicionar");
-        const adicionarEste = () => {
-          adicionar(cat.id, it.id, campo.value.trim());
-          campo.value = "";
-        };
-        botao.addEventListener("click", adicionarEste);
-        campo.addEventListener("keydown", (e) => { if (e.key === "Enter") adicionarEste(); });
-        if (estado.itens.some((x) => x.c === cat.id && x.i === it.id)) no.classList.add("no-loadout");
-        pecasLista.appendChild(no);
-      });
+  }
+  // Conflitos que um produto candidato teria com o que já está escolhido.
+  // ignorarVaga: numa vaga de escolha única, o item atual vai ser trocado, então não conta.
+  function conflitosDe(cand, ignorarVaga) {
+    const saida = [];
+    produtosEscolhidos().forEach((sel) => {
+      if (sel.id === cand.id || (ignorarVaga && sel.vaga === ignorarVaga)) return;
+      checar(cand, sel, saida);
+      checar(sel, cand, saida);
     });
-
-    if (window.matchMedia("(max-width: 900px)").matches) {
-      $(".bloco-pecas").scrollIntoView({ behavior: "smooth", block: "start" });
-    }
+    return saida;
+  }
+  // Todos os conflitos do loadout atual (cada par uma vez)
+  function conflitosGerais() {
+    const escolhidos = produtosEscolhidos();
+    const saida = [];
+    escolhidos.forEach((dono) => escolhidos.forEach((alvo) => checar(dono, alvo, saida)));
+    const vistos = new Set();
+    return saida.filter((c) => !vistos.has(c.texto) && vistos.add(c.texto));
+  }
+  function pior(lista) {
+    if (lista.some((c) => c.nivel === "erro")) return "erro";
+    if (lista.length) return "aviso";
+    return "ok";
   }
 
-  // ---------- Loadout ----------
-  function adicionar(c, i, d) {
-    if (estado.itens.some((x) => x.c === c && x.i === i && x.d.toLowerCase() === d.toLowerCase())) {
-      mostrarAviso("Essa peça já está no loadout.");
+  // ---------- Montagem (tabela principal) ----------
+  const montagem = $("#montagem");
+  const compat = $("#compat");
+
+  function renderCompat() {
+    const lista = conflitosGerais();
+    const nivel = pior(lista);
+    compat.className = "compat compat-" + nivel;
+    compat.innerHTML = "";
+    if (!estado.itens.length) {
+      compat.append(el("strong", { text: "Compatibilidade" }), " — escolha as peças e a gente avisa se algo não combina.");
       return;
     }
-    estado.itens.push({ c, i, d });
-    salvar();
-    renderLoadout();
-    if (categoriaAtual) selecionarCategoria(categoriaAtual);
-    mostrarAviso(acharItem(c, i).nome + " adicionado.");
+    if (nivel === "ok") {
+      compat.append(el("strong", { text: "✓ Tudo compatível" }), " — nenhum problema encontrado entre as peças escolhidas.");
+      return;
+    }
+    const erros = lista.filter((c) => c.nivel === "erro").length;
+    const avisos = lista.length - erros;
+    const partes = [];
+    if (erros) partes.push(erros + (erros > 1 ? " incompatibilidades" : " incompatibilidade"));
+    if (avisos) partes.push(avisos + (avisos > 1 ? " avisos" : " aviso"));
+    compat.append(
+      el("strong", { text: (nivel === "erro" ? "✕ " : "⚠ ") + partes.join(" e ") }),
+      el("ul", null, lista.map((c) => el("li", { class: "c-" + c.nivel, text: c.texto })))
+    );
   }
 
+  function linhaItem(item, indice) {
+    const prod = item.p ? prodPorId.get(item.p) : null;
+    const nome = prod ? prod.nome : item.m;
+    const vaga = vagaPorId.get(item.v);
+    const detalhes = prod
+      ? vaga.colunas
+          .filter((c) => prod.a[c[0]] && prod.a[c[0]] !== "—" && prod.a[c[0]] !== "Diversas")
+          .map((c) => (["Sim", "Não", "Varia"].includes(prod.a[c[0]]) ? c[1] + ": " + prod.a[c[0]].toLowerCase() : prod.a[c[0]]))
+          .join(" · ")
+      : "Adicionado manualmente";
+    const problemas = prod ? conflitosDe(prod) : [];
+    const nivel = pior(problemas);
+    return el("div", { class: "escolhido escolhido-" + nivel },
+      el("div", { class: "escolhido-topo" },
+        el("div", null,
+          el("strong", { text: nome }),
+          nivel !== "ok" ? el("span", { class: "selo selo-" + nivel, title: problemas.map((p) => p.texto).join("\n"), text: nivel === "erro" ? "Incompatível" : "Atenção" }) : null,
+          el("span", { class: "escolhido-detalhes", text: detalhes })),
+        el("button", { type: "button", class: "btn-remover", "aria-label": "Remover " + nome, text: "×", onclick: () => remover(indice) })),
+      chipsLojas(prod ? prod.busca || prod.nome : item.m));
+  }
+
+  function renderMontagem() {
+    montagem.innerHTML = "";
+    DADOS.regioes.forEach((reg) => {
+      const vagas = DADOS.vagas.filter((v) => v.regiao === reg.id);
+      const corpo = el("tbody");
+      vagas.forEach((vaga) => {
+        const itens = estado.itens.map((x, i) => [x, i]).filter(([x]) => x.v === vaga.id);
+        const celula = el("td", { class: "col-selecionado" }, itens.map(([x, i]) => linhaItem(x, i)));
+        let rotuloBotao;
+        if (!itens.length) rotuloBotao = "+ Escolher " + vaga.nome.toLowerCase();
+        else if (vaga.multiplo) rotuloBotao = "+ Adicionar outro";
+        else rotuloBotao = "Trocar";
+        celula.append(el("button", {
+          type: "button",
+          class: itens.length ? "btn btn-escolher btn-escolher-leve" : "btn btn-escolher",
+          text: rotuloBotao,
+          onclick: () => abrirSeletor(vaga.id),
+        }));
+        corpo.append(el("tr", null, el("th", { scope: "row", class: "col-vaga", text: vaga.nome }), celula));
+      });
+      montagem.append(el("section", { class: "regiao-bloco", id: "reg-" + reg.id, "data-regiao": reg.id },
+        el("h3", { text: reg.nome }),
+        el("table", { class: "tabela-montagem" }, corpo)));
+    });
+
+    // Marca a silhueta e os atalhos
+    const comItem = new Set(estado.itens.map((x) => vagaPorId.get(x.v).regiao));
+    document.querySelectorAll("[data-cat]").forEach((n) => n.classList.toggle("tem-item", comItem.has(n.dataset.cat)));
+    renderCompat();
+  }
+
+  // ---------- Ações no loadout ----------
+  function escolher(vagaId, item) {
+    const vaga = vagaPorId.get(vagaId);
+    if (!vaga.multiplo) estado.itens = estado.itens.filter((x) => x.v !== vagaId);
+    else if (item.p && estado.itens.some((x) => x.p === item.p)) return;
+    estado.itens.push(Object.assign({ v: vagaId }, item));
+    salvar();
+    renderMontagem();
+  }
   function remover(indice) {
     estado.itens.splice(indice, 1);
     salvar();
-    renderLoadout();
-    if (categoriaAtual) selecionarCategoria(categoriaAtual);
+    renderMontagem();
   }
 
-  function renderLoadout() {
-    loadoutLista.innerHTML = "";
-    contador.textContent = String(estado.itens.length);
-    loadoutVazio.hidden = estado.itens.length > 0;
-
-    // Marca na silhueta as regiões que já têm peça
-    const comItem = new Set(estado.itens.map((x) => x.c));
-    document.querySelectorAll("[data-cat]").forEach((el) =>
-      el.classList.toggle("tem-item", comItem.has(el.dataset.cat))
-    );
-
-    // Mostra na ordem do catálogo
-    const ordem = CATALOGO.map((c) => c.id);
-    const indices = estado.itens
-      .map((x, idx) => idx)
-      .sort((a, b) => ordem.indexOf(estado.itens[a].c) - ordem.indexOf(estado.itens[b].c));
-
-    indices.forEach((idx) => {
-      const entrada = estado.itens[idx];
-      const cat = categoriaPorId.get(entrada.c);
-      const item = acharItem(entrada.c, entrada.i);
-
-      const li = document.createElement("li");
-      li.className = "entrada";
-
-      const topo = document.createElement("div");
-      topo.className = "entrada-topo";
-      const textos = document.createElement("div");
-      const rot = document.createElement("span");
-      rot.className = "entrada-cat";
-      rot.textContent = cat.nome;
-      const nome = document.createElement("strong");
-      nome.textContent = item.nome + (entrada.d ? " — " + entrada.d : "");
-      textos.append(rot, nome);
-
-      const btnRemover = document.createElement("button");
-      btnRemover.type = "button";
-      btnRemover.className = "btn-remover";
-      btnRemover.setAttribute("aria-label", "Remover " + item.nome);
-      btnRemover.textContent = "×";
-      btnRemover.addEventListener("click", () => remover(idx));
-      topo.append(textos, btnRemover);
-
-      const lojas = document.createElement("div");
-      lojas.className = "entrada-lojas";
-      const termo = termoBusca(entrada);
-      LOJAS.forEach((loja) => {
-        const a = document.createElement("a");
-        a.href = urlLoja(loja, termo);
-        a.target = "_blank";
-        a.rel = "noopener noreferrer";
-        a.textContent = loja.nome;
-        lojas.appendChild(a);
+  // ---------- Silhueta ----------
+  function irParaRegiao(regId) {
+    document.querySelectorAll("[data-cat]").forEach((n) => n.classList.toggle("ativa", n.dataset.cat === regId));
+    const alvo = document.getElementById("reg-" + regId);
+    if (!alvo) return;
+    alvo.scrollIntoView({ behavior: "smooth", block: "start" });
+    alvo.classList.remove("piscar");
+    void alvo.offsetWidth;
+    alvo.classList.add("piscar");
+  }
+  function montarSilhueta() {
+    const atalhos = $("#atalhos");
+    DADOS.regioes.forEach((r) =>
+      atalhos.append(el("button", { type: "button", class: "atalho", "data-cat": r.id, text: r.nome, onclick: () => irParaRegiao(r.id) })));
+    document.querySelectorAll("#silhueta .regiao").forEach((n) => {
+      n.addEventListener("click", () => irParaRegiao(n.dataset.cat));
+      n.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); irParaRegiao(n.dataset.cat); }
       });
-
-      li.append(topo, lojas);
-      loadoutLista.appendChild(li);
     });
   }
 
-  // ---------- Ações ----------
+  // ---------- Seletor de produtos ----------
+  const seletor = $("#seletor");
+  let sel = null; // { vaga, busca, filtros: {campo: Set}, soCompat, ordem: {campo, dir} }
+  let focoAnterior = null;
+
+  function abrirSeletor(vagaId) {
+    const vaga = vagaPorId.get(vagaId);
+    sel = { vaga: vaga, busca: "", filtros: {}, soCompat: !vaga.base, ordem: { campo: "nome", dir: 1 } };
+    focoAnterior = document.activeElement;
+    $("#seletor-regiao").textContent = regiaoPorId.get(vaga.regiao).nome;
+    $("#seletor-titulo").textContent = "Escolher " + vaga.nome.toLowerCase();
+    $("#busca").value = "";
+    $("#manual-nome").value = "";
+    montarFiltros();
+    renderTabela();
+    seletor.hidden = false;
+    document.body.classList.add("sem-rolagem");
+    $("#busca").focus();
+  }
+  function fecharSeletor() {
+    seletor.hidden = true;
+    document.body.classList.remove("sem-rolagem");
+    sel = null;
+    if (focoAnterior && document.contains(focoAnterior)) focoAnterior.focus();
+  }
+
+  function produtosDaVaga() {
+    return DADOS.produtos.filter((p) => p.vaga === sel.vaga.id);
+  }
+
+  function montarFiltros() {
+    const box = $("#filtros");
+    box.innerHTML = "";
+    const soCompat = el("input", { type: "checkbox", checked: sel.soCompat, onchange: (e) => { sel.soCompat = e.target.checked; renderTabela(); } });
+    box.append(el("label", { class: "filtro-compat" }, soCompat, " Mostrar só compatíveis"));
+
+    const prods = produtosDaVaga();
+    sel.vaga.colunas.forEach(([campo, rotulo]) => {
+      const valores = [...new Set(prods.map((p) => p.a[campo]).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+      if (valores.length < 2) return;
+      sel.filtros[campo] = new Set();
+      box.append(el("fieldset", null,
+        el("legend", { text: rotulo }),
+        valores.map((v) => el("label", null,
+          el("input", { type: "checkbox", value: v, onchange: (e) => {
+            if (e.target.checked) sel.filtros[campo].add(v); else sel.filtros[campo].delete(v);
+            renderTabela();
+          } }), " " + v))));
+    });
+    box.append(el("button", { type: "button", class: "btn btn-secundario btn-limpar-filtros", text: "Limpar filtros", onclick: () => { montarFiltros(); $("#busca").value = ""; sel.busca = ""; renderTabela(); } }));
+  }
+
+  function renderTabela() {
+    const vaga = sel.vaga;
+    const cab = $("#tabela-cabecalho");
+    const corpo = $("#tabela-corpo");
+    cab.innerHTML = "";
+    corpo.innerHTML = "";
+
+    // Cabeçalho com ordenação
+    const colunas = [["nome", "Produto"]].concat(vaga.colunas);
+    cab.append(el("tr", null,
+      colunas.map(([campo, rotulo]) => {
+        const ativo = sel.ordem.campo === campo;
+        return el("th", { scope: "col", "aria-sort": ativo ? (sel.ordem.dir > 0 ? "ascending" : "descending") : null },
+          el("button", { type: "button", class: "ordenar", onclick: () => {
+            sel.ordem = { campo: campo, dir: ativo ? -sel.ordem.dir : 1 };
+            renderTabela();
+          } }, rotulo, ativo ? (sel.ordem.dir > 0 ? " ▲" : " ▼") : ""));
+      }),
+      el("th", { scope: "col", text: "Compatibilidade" }),
+      el("th", { scope: "col" }, el("span", { class: "sr", text: "Ação" }))));
+
+    // Filtra
+    const termo = sel.busca.toLowerCase();
+    let lista = produtosDaVaga().filter((p) => {
+      if (termo && !(p.nome + " " + Object.values(p.a).join(" ")).toLowerCase().includes(termo)) return false;
+      return Object.entries(sel.filtros).every(([campo, set]) => !set.size || set.has(p.a[campo]));
+    });
+    let ocultos = 0;
+    const comConflitos = lista.map((p) => ({ p: p, c: conflitosDe(p, vaga.multiplo ? null : vaga.id) }));
+    const visiveis = comConflitos.filter((x) => {
+      if (sel.soCompat && pior(x.c) === "erro") { ocultos++; return false; }
+      return true;
+    });
+
+    // Ordena
+    const { campo, dir } = sel.ordem;
+    visiveis.sort((x, y) => {
+      const a = campo === "nome" ? x.p.nome : x.p.a[campo] || "";
+      const b = campo === "nome" ? y.p.nome : y.p.a[campo] || "";
+      return a.localeCompare(b, "pt-BR", { numeric: true }) * dir;
+    });
+
+    visiveis.forEach(({ p, c }) => {
+      const nivel = pior(c);
+      const jaTem = estado.itens.some((x) => x.p === p.id);
+      let statusTxt = nivel === "ok" ? "✓ Compatível" : nivel === "aviso" ? "⚠ Atenção" : "✕ Incompatível";
+      if (vaga.base && nivel === "erro") statusTxt = "✕ Conflita com peças escolhidas";
+      corpo.append(el("tr", { class: "linha-" + nivel },
+        el("td", { class: "col-produto", "data-rotulo": "Produto" }, el("strong", { text: p.nome })),
+        vaga.colunas.map(([cp, rot]) => el("td", { "data-rotulo": rot, text: p.a[cp] || "—" })),
+        el("td", { class: "col-status", "data-rotulo": "Compatibilidade" },
+          el("span", { class: "status status-" + nivel, text: statusTxt }),
+          c.length ? el("small", { class: "status-motivo", text: c.map((x) => x.texto).join(" ") }) : null),
+        el("td", { class: "col-acao" },
+          el("button", {
+            type: "button",
+            class: "btn btn-adicionar",
+            disabled: jaTem,
+            text: jaTem ? "No loadout" : "Escolher",
+            onclick: () => {
+              escolher(vaga.id, { p: p.id });
+              fecharSeletor();
+              mostrarAviso(p.nome + " adicionado" + (nivel !== "ok" ? " — confira o aviso de compatibilidade." : "."));
+            },
+          }))));
+    });
+
+    if (!visiveis.length) {
+      corpo.append(el("tr", null, el("td", { colspan: colunas.length + 2, class: "vazio", text: "Nenhum produto com esses filtros." })));
+    }
+    $("#resultados-total").textContent = visiveis.length + (visiveis.length === 1 ? " produto" : " produtos");
+    const ocultosEl = $("#ocultos");
+    ocultosEl.innerHTML = "";
+    if (ocultos) {
+      ocultosEl.append(
+        ocultos + (ocultos > 1 ? " produtos ocultos por não serem compatíveis. " : " produto oculto por não ser compatível. "),
+        el("button", { type: "button", class: "link", text: "Mostrar mesmo assim", onclick: () => {
+          sel.soCompat = false;
+          $(".filtro-compat input").checked = false;
+          renderTabela();
+        } }));
+    }
+  }
+
+  // ---------- Avisos rápidos ----------
   let timerAviso;
   function mostrarAviso(msg) {
-    aviso.textContent = msg;
+    const a = $("#aviso");
+    a.textContent = msg;
     clearTimeout(timerAviso);
-    timerAviso = setTimeout(() => (aviso.textContent = ""), 3500);
+    timerAviso = setTimeout(() => (a.textContent = ""), 4000);
   }
 
   async function copiarLink() {
-    if (!estado.itens.length) {
-      mostrarAviso("Adicione pelo menos uma peça antes de copiar o link.");
-      return;
-    }
+    if (!estado.itens.length) { mostrarAviso("Escolha pelo menos uma peça antes de copiar o link."); return; }
     const link = location.href;
     let ok = false;
-    try {
-      await navigator.clipboard.writeText(link);
-      ok = true;
-    } catch (e) {
-      const t = document.createElement("textarea");
+    try { await navigator.clipboard.writeText(link); ok = true; } catch (e) {
+      const t = el("textarea");
       t.value = link;
-      document.body.appendChild(t);
+      document.body.append(t);
       t.select();
       try { ok = document.execCommand("copy"); } catch (e2) { ok = false; }
       t.remove();
     }
     let msg = ok ? "Link copiado! Cole onde quiser para salvar ou compartilhar." : "Não consegui copiar. Copie o endereço da barra do navegador.";
-    if (location.protocol === "file:") msg += " (Rodando no seu PC, o link só abre aí. Depois de publicado, funciona para todo mundo.)";
+    if (location.protocol === "file:") msg += " (No seu PC o link só abre aí; depois de publicado funciona para todos.)";
     mostrarAviso(msg);
-  }
-
-  function limpar() {
-    if (!estado.itens.length && !estado.nome) return;
-    estado = { nome: "", itens: [] };
-    campoNome.value = "";
-    salvar();
-    renderLoadout();
-    if (categoriaAtual) selecionarCategoria(categoriaAtual);
-    mostrarAviso("Loadout limpo.");
   }
 
   // ---------- Início ----------
   function iniciar() {
-    montarAtalhos();
+    montarSilhueta();
 
-    svg.querySelectorAll(".regiao").forEach((el) => {
-      el.addEventListener("click", () => selecionarCategoria(el.dataset.cat));
-      el.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          selecionarCategoria(el.dataset.cat);
-        }
-      });
-    });
-
-    campoNome.addEventListener("input", () => {
-      estado.nome = campoNome.value.slice(0, 60);
-      salvar();
-    });
+    const campoNome = $("#nome-loadout");
+    campoNome.addEventListener("input", () => { estado.nome = campoNome.value.slice(0, 60); salvar(); });
     $("#btn-copiar").addEventListener("click", copiarLink);
-    $("#btn-limpar").addEventListener("click", limpar);
+    $("#btn-limpar").addEventListener("click", () => {
+      if (!estado.itens.length && !estado.nome) return;
+      if (!confirmarLimpeza()) return;
+      estado = { nome: "", itens: [] };
+      campoNome.value = "";
+      salvar();
+      renderMontagem();
+      mostrarAviso("Loadout limpo.");
+    });
+
+    $("#busca").addEventListener("input", (e) => { sel.busca = e.target.value; renderTabela(); });
+    $("#seletor-fechar").addEventListener("click", fecharSeletor);
+    seletor.addEventListener("click", (e) => { if (e.target === seletor) fecharSeletor(); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && sel) fecharSeletor(); });
+    $("#manual").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const nome = $("#manual-nome").value.trim();
+      if (!nome) return;
+      const vagaId = sel.vaga.id;
+      escolher(vagaId, { m: nome.slice(0, 80) });
+      fecharSeletor();
+      mostrarAviso(nome + " adicionado.");
+    });
 
     window.addEventListener("hashchange", () => {
       estado = carregar();
       campoNome.value = estado.nome;
-      renderLoadout();
+      renderMontagem();
     });
 
     estado = carregar();
     campoNome.value = estado.nome;
     salvar();
-    renderLoadout();
-    if (estado.nome) document.title = estado.nome + " — Meu Loadout";
+    renderMontagem();
+  }
+
+  // Botão "Limpar" pede um segundo clique para confirmar (sem janelas do navegador)
+  let limparArmado = false, timerLimpar;
+  function confirmarLimpeza() {
+    const b = $("#btn-limpar");
+    if (limparArmado) { limparArmado = false; b.textContent = "Limpar"; return true; }
+    limparArmado = true;
+    b.textContent = "Clique de novo";
+    clearTimeout(timerLimpar);
+    timerLimpar = setTimeout(() => { limparArmado = false; b.textContent = "Limpar"; }, 3000);
+    return false;
   }
 
   iniciar();
