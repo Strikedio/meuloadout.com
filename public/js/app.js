@@ -82,6 +82,40 @@
     return { nome: "", itens: [] };
   }
 
+  // ---------- Preços de referência (js/precos.js) ----------
+  const PRECOS = (window.MEULOADOUT_PRECOS && window.MEULOADOUT_PRECOS.itens) || {};
+  const DIAS_PRECO_ANTIGO = 45;
+  const moeda = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+  function linkSeguro(u) {
+    try { const x = new URL(u); return x.protocol === "https:" ? x.href : null; } catch (e) { return null; }
+  }
+  function precoDe(prodId) {
+    const p = Object.prototype.hasOwnProperty.call(PRECOS, prodId) ? PRECOS[prodId] : null;
+    if (!p || typeof p.valor !== "number" || !(p.valor > 0)) return null;
+    const data = /^\d{4}-\d{2}-\d{2}$/.test(p.data || "") ? p.data : null;
+    const dias = data ? Math.floor((Date.now() - new Date(data + "T12:00:00").getTime()) / 864e5) : null;
+    return {
+      valor: p.valor,
+      loja: typeof p.loja === "string" ? p.loja.slice(0, 40) : "",
+      link: p.link ? linkSeguro(p.link) : null,
+      data: data,
+      antigo: dias == null || dias > DIAS_PRECO_ANTIGO,
+    };
+  }
+  function dataCurta(iso) {
+    return iso ? iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.slice(0, 4) : "data desconhecida";
+  }
+  function blocoPreco(pr) {
+    if (!pr) return el("span", { class: "preco-vazio", text: "Sem preço de referência" });
+    const loja = pr.link
+      ? el("a", { href: pr.link, target: "_blank", rel: "noopener noreferrer nofollow sponsored", text: pr.loja || "ver oferta" })
+      : el("span", { text: pr.loja });
+    return el("span", { class: "preco" + (pr.antigo ? " preco-antigo" : "") },
+      el("strong", { text: moeda.format(pr.valor) }),
+      pr.loja || pr.link ? [" · ", loja] : null,
+      el("small", { text: " · consultado em " + dataCurta(pr.data) + (pr.antigo ? " (pode ter mudado)" : "") }));
+  }
+
   // ---------- Lojas ----------
   function urlLoja(loja, termo) {
     const t = loja.formato === "hifen"
@@ -144,6 +178,23 @@
   const montagem = $("#montagem");
   const compat = $("#compat");
 
+  function renderTotal() {
+    const box = $("#total");
+    const prods = estado.itens.filter((x) => x.p);
+    const comPreco = prods.map((x) => precoDe(x.p)).filter(Boolean);
+    box.innerHTML = "";
+    if (!estado.itens.length) { box.hidden = true; return; }
+    box.hidden = false;
+    const soma = comPreco.reduce((t, p) => t + p.valor, 0);
+    const semPreco = estado.itens.length - comPreco.length;
+    box.append(
+      el("span", { class: "total-rotulo", text: "Total estimado" }),
+      el("strong", { class: "total-valor", text: comPreco.length ? moeda.format(soma) : "—" }),
+      el("small", { text: semPreco
+        ? comPreco.length + " de " + estado.itens.length + " peças com preço de referência"
+        : "todas as peças com preço de referência" }));
+  }
+
   function renderCompat() {
     const lista = conflitosGerais();
     const nivel = pior(lista);
@@ -187,6 +238,7 @@
           nivel !== "ok" ? el("span", { class: "selo selo-" + nivel, title: problemas.map((p) => p.texto).join("\n"), text: nivel === "erro" ? "Incompatível" : "Atenção" }) : null,
           el("span", { class: "escolhido-detalhes", text: detalhes })),
         el("button", { type: "button", class: "btn-remover", "aria-label": "Remover " + nome, text: "×", onclick: () => remover(indice) })),
+      prod ? el("div", { class: "escolhido-preco" }, blocoPreco(precoDe(prod.id))) : null,
       chipsLojas(prod ? prod.busca || prod.nome : item.m));
   }
 
@@ -219,6 +271,7 @@
     const comItem = new Set(estado.itens.map((x) => vagaPorId.get(x.v).regiao));
     document.querySelectorAll("[data-cat]").forEach((n) => n.classList.toggle("tem-item", comItem.has(n.dataset.cat)));
     renderCompat();
+    renderTotal();
   }
 
   // ---------- Ações no loadout ----------
@@ -308,6 +361,16 @@
             renderTabela();
           } }), " " + v))));
     });
+    if (prods.some((p) => precoDe(p.id))) {
+      sel.precoMax = null;
+      box.append(el("fieldset", null,
+        el("legend", { text: "Preço até (R$)" }),
+        el("input", { type: "number", min: "0", step: "50", inputmode: "numeric", class: "filtro-preco", placeholder: "Sem limite", oninput: (e) => {
+          const v = parseFloat(e.target.value);
+          sel.precoMax = v > 0 ? v : null;
+          renderTabela();
+        } })));
+    }
     box.append(el("button", { type: "button", class: "btn btn-secundario btn-limpar-filtros", text: "Limpar filtros", onclick: () => { montarFiltros(); $("#busca").value = ""; sel.busca = ""; renderTabela(); } }));
   }
 
@@ -319,7 +382,7 @@
     corpo.innerHTML = "";
 
     // Cabeçalho com ordenação
-    const colunas = [["nome", "Produto"]].concat(vaga.colunas);
+    const colunas = [["nome", "Produto"]].concat(vaga.colunas, [["preco", "Preço"]]);
     cab.append(el("tr", null,
       colunas.map(([campo, rotulo]) => {
         const ativo = sel.ordem.campo === campo;
@@ -336,6 +399,7 @@
     const termo = sel.busca.toLowerCase();
     let lista = produtosDaVaga().filter((p) => {
       if (termo && !(p.nome + " " + Object.values(p.a).join(" ")).toLowerCase().includes(termo)) return false;
+      if (sel.precoMax) { const pr = precoDe(p.id); if (!pr || pr.valor > sel.precoMax) return false; }
       return Object.entries(sel.filtros).every(([campo, set]) => !set.size || set.has(p.a[campo]));
     });
     let ocultos = 0;
@@ -348,6 +412,11 @@
     // Ordena
     const { campo, dir } = sel.ordem;
     visiveis.sort((x, y) => {
+      if (campo === "preco") {
+        const pa = precoDe(x.p.id), pb = precoDe(y.p.id);
+        if (!pa || !pb) return (pa ? -1 : 0) + (pb ? 1 : 0);
+        return (pa.valor - pb.valor) * dir;
+      }
       const a = campo === "nome" ? x.p.nome : x.p.a[campo] || "";
       const b = campo === "nome" ? y.p.nome : y.p.a[campo] || "";
       return a.localeCompare(b, "pt-BR", { numeric: true }) * dir;
@@ -361,6 +430,11 @@
       corpo.append(el("tr", { class: "linha-" + nivel },
         el("td", { class: "col-produto", "data-rotulo": "Produto" }, el("strong", { text: p.nome })),
         vaga.colunas.map(([cp, rot]) => el("td", { "data-rotulo": rot, text: p.a[cp] || "—" })),
+        (() => {
+          const pr = precoDe(p.id);
+          return el("td", { class: "col-preco", "data-rotulo": "Preço" },
+            pr ? [el("strong", { text: moeda.format(pr.valor) }), el("small", { class: pr.antigo ? "preco-antigo" : null, text: (pr.loja ? pr.loja + " · " : "") + dataCurta(pr.data) })] : "—");
+        })(),
         el("td", { class: "col-status", "data-rotulo": "Compatibilidade" },
           el("span", { class: "status status-" + nivel, text: statusTxt }),
           c.length ? el("small", { class: "status-motivo", text: c.map((x) => x.texto).join(" ") }) : null),

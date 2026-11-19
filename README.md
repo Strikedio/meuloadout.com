@@ -30,6 +30,7 @@ public/                 o site (é o que o Cloudflare publica)
   css/estilo.css        visual
   js/catalogo.js        vagas, produtos e regras de compatibilidade
   js/lojas.js           lojas pesquisadas / links de afiliado
+  js/precos.js          preços de referência (você preenche)
   js/app.js             lógica da página
 functions/api/          rotas do servidor (Cloudflare Pages Functions)
   ml/login.js           liga a conta do Mercado Livre (só administrador)
@@ -38,6 +39,20 @@ functions/api/          rotas do servidor (Cloudflare Pages Functions)
 lib/ml.js               código compartilhado da integração com o ML
 SECURITY.md             como reportar falhas e regras de segurança
 ```
+
+## Preços de referência
+
+Em `public/js/precos.js`, cada produto pode ganhar o preço que você encontrou numa loja:
+
+```js
+"sa-e05": { valor: 1899.90, loja: "Nome da Loja", data: "2026-11-19", link: "https://www.loja.com.br/produto" },
+```
+
+- A chave (`"sa-e05"`) é o `id` do produto em `catalogo.js`.
+- `valor` usa ponto nos centavos e não leva ponto de milhar nem "R$".
+- O site mostra o preço na lista, ordena e filtra por preço e soma o **total estimado** do loadout.
+- Preços com mais de 45 dias aparecem com o aviso "pode ter mudado".
+- Links que não começam com `https://` são ignorados.
 
 ## Integração com o Mercado Livre
 
@@ -77,5 +92,6 @@ Em `js/lojas.js`, `{q}` é trocado pelo termo da peça. Para usar um link de afi
 - [ ] Links de afiliado e lojas parceiras
 - [ ] Busca automática de produtos e preços nas lojas (precisa de um pequeno servidor/API)
 - [ ] Ampliar o catálogo (mais marcas e modelos) e conferir as especificações
-- [ ] Preços dentro do site (comparação entre lojas, como o meupc.net)
+- [x] Preços de referência e total estimado
+- [ ] Preços automáticos pela API do Mercado Livre (aguardando validação da conta no ML)
 - [ ] Manequim 3D que gira para ver as peças no corpo
