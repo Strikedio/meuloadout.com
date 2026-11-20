@@ -328,6 +328,15 @@ input::placeholder { color: #6f705e; }
 .preco small, .preco-vazio { color: var(--texto-suave); font-size: 12px; }
 .preco-antigo small, small.preco-antigo { color: var(--amarelo); }
 .col-preco { white-space: nowrap; }
+.ofertas { margin-top: 6px; font-size: 13px; }
+.ofertas[hidden] { display: none; }
+.ofertas-titulo { color: var(--texto-suave); font-size: 11px; }
+.ofertas ul { list-style: none; margin: 2px 0 0; padding: 0; display: grid; gap: 2px; }
+.ofertas a { color: var(--areia); text-decoration: none; }
+.ofertas a:hover strong { text-decoration: underline; }
+.ofertas strong { color: var(--areia-forte); }
+.oferta-nome { display: block; color: var(--texto-suave); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.selo-importado { margin-left: 6px; padding: 0 5px; border: 1px solid var(--amarelo); border-radius: 3px; color: var(--amarelo); font-size: 10px; text-transform: uppercase; }
 .col-preco strong { display: block; color: var(--areia-forte); }
 .col-preco small { display: block; font-size: 11px; color: var(--texto-suave); }
 .filtro-preco {

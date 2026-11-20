@@ -128,6 +128,40 @@
       LOJAS.map((l) => el("a", { href: urlLoja(l, termo), target: "_blank", rel: "noopener noreferrer", text: l.nome })));
   }
 
+  // ---------- Ofertas automáticas (AliExpress, Shopee) via /api/ofertas ----------
+  // Só aparecem depois que as chaves das lojas forem cadastradas no Cloudflare.
+  const cacheOfertas = new Map();
+  let ofertasDesligadas = false;
+  function buscarOfertas(prodId) {
+    if (!cacheOfertas.has(prodId)) {
+      cacheOfertas.set(prodId, fetch("/api/ofertas?id=" + encodeURIComponent(prodId), { headers: { Accept: "application/json" } })
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null));
+    }
+    return cacheOfertas.get(prodId);
+  }
+  function blocoOfertas(prodId) {
+    const caixa = el("div", { class: "ofertas", hidden: true });
+    if (ofertasDesligadas || !/^[a-z0-9-]{1,40}$/i.test(prodId)) return caixa;
+    buscarOfertas(prodId).then((d) => {
+      if (!d || !d.ativo) { if (d && d.ativo === false) ofertasDesligadas = true; return; }
+      const lista = (Array.isArray(d.ofertas) ? d.ofertas : [])
+        .filter((o) => o && typeof o.valor === "number" && o.valor > 0 && linkSeguro(o.link))
+        .slice(0, 4);
+      if (!lista.length) return;
+      caixa.append(
+        el("small", { class: "ofertas-titulo", text: "Ofertas online (resultado de busca, confira se é o mesmo produto)" }),
+        el("ul", null, lista.map((o) => el("li", null,
+          el("a", { href: linkSeguro(o.link), target: "_blank", rel: "noopener noreferrer nofollow sponsored" },
+            el("strong", { text: moeda.format(o.valor) }),
+            " · " + String(o.loja || "").slice(0, 20),
+            o.importado ? el("span", { class: "selo-importado", text: "importado" }) : null),
+          el("span", { class: "oferta-nome", text: String(o.titulo || "").slice(0, 90) })))));
+      caixa.hidden = false;
+    });
+    return caixa;
+  }
+
   // ---------- Compatibilidade ----------
   function produtosEscolhidos() {
     return estado.itens.filter((x) => x.p).map((x) => prodPorId.get(x.p));
@@ -239,6 +273,7 @@
           el("span", { class: "escolhido-detalhes", text: detalhes })),
         el("button", { type: "button", class: "btn-remover", "aria-label": "Remover " + nome, text: "×", onclick: () => remover(indice) })),
       prod ? el("div", { class: "escolhido-preco" }, blocoPreco(precoDe(prod.id))) : null,
+      prod ? blocoOfertas(prod.id) : null,
       chipsLojas(prod ? prod.busca || prod.nome : item.m));
   }
 

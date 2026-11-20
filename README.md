@@ -84,6 +84,22 @@ As chaves ficam **somente** nas configurações do projeto no Cloudflare (Settin
 Para ligar a conta: abra `https://meuloadout.com/api/ml/login?key=SUA_ADMIN_KEY`.
 Para testar: `https://meuloadout.com/api/ml/teste?key=SUA_ADMIN_KEY`.
 
+## Ofertas automáticas: AliExpress e Shopee
+
+Funções em `functions/api/ofertas/` e código comum em `lib/ofertas.js`. Cada loja só liga quando as chaves dela forem cadastradas no Cloudflare (Settings → Variables and Secrets):
+
+| Nome | Tipo | O que é |
+|---|---|---|
+| `ALI_APP_KEY` | Text | App Key do app no open.aliexpress.com |
+| `ALI_APP_SECRET` | **Secret** | App Secret do app |
+| `ALI_TRACKING_ID` | Text | Tracking ID do portals.aliexpress.com (comissão dos links) |
+| `SHOPEE_APP_ID` | Text | App ID da Open API (affiliate.shopee.com.br) |
+| `SHOPEE_SECRET` | **Secret** | Secret da Open API |
+
+- O site chama `/api/ofertas?id=ID_DO_PRODUTO`. O servidor só pesquisa o termo `busca` (ou o nome) do produto que está em `js/catalogo.js`, então ninguém consegue usar a nossa conta para buscas aleatórias.
+- As respostas ficam guardadas no KV `ML_KV` por 6 horas (30 minutos se a loja falhar).
+- Para testar depois de cadastrar as chaves: `https://meuloadout.com/api/ofertas/teste?key=SUA_ADMIN_KEY&q=red dot airsoft`.
+
 ### Incluir um produto
 
 Em `js/catalogo.js`, na lista `produtos`, copie uma linha parecida e altere os valores:
