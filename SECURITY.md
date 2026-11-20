@@ -14,6 +14,8 @@ A mensagem chega só para o mantenedor. Responderemos assim que possível.
 - Nenhum script de terceiros: tudo é carregado do próprio domínio, e a política de segurança (CSP) bloqueia o resto.
 - Todo texto digitado ou vindo de um link é exibido como texto, nunca como HTML.
 - Cabeçalhos de segurança definidos em `_headers` (CSP, anti-iframe, HSTS etc.).
+- As chaves das APIs (Mercado Livre, AliExpress, Shopee) ficam só nas variáveis secretas do Cloudflare. As consultas às lojas são feitas pelo servidor, e a busca pública só aceita produtos do catálogo.
+- Links de ofertas só são aceitos se forem `https` e do domínio da própria loja.
 
 ## Regras para quem contribui
 
