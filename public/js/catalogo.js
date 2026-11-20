@@ -6,11 +6,15 @@
  *             multiplo: true  = o operador pode escolher vários produtos (ex.: magazines)
  *             base: true      = peça "principal" (arma): a lista mostra tudo e só sinaliza o que vai conflitar
  *             colunas         = atributos mostrados na lista e usados como filtro
+ *             curto           = nome curto mostrado no slot do inventário
  * PRODUTOS -> o que aparece na lista de cada vaga.
  *             id      -> único no catálogo inteiro; vai dentro do link compartilhado (não mude depois de publicado)
  *             a       -> atributos (as chaves precisam bater com as "colunas" da vaga)
  *             busca   -> termo de busca nas lojas (se não tiver, usa o nome)
  *             req     -> regras de compatibilidade (ver abaixo)
+ *             img     -> opcional: foto do produto. "img/produtos/arquivo.webp" (arquivo dentro de public/)
+ *                        ou endereço https de host liberado (por enquanto só http2.mlstatic.com, do Mercado Livre).
+ *                        Use só fotos que você tem permissão de usar. Sem foto, o site mostra o desenho da peça.
  *
  * REGRAS DE COMPATIBILIDADE
  *   req("armaPrincipal", "plataforma", ["M4"])
@@ -42,35 +46,35 @@
 
   const vagas = [
     // Arma principal
-    { id: "armaPrincipal", regiao: "armaPrincipal", nome: "Arma principal", base: true, colunas: [["marca", "Marca"], ["plataforma", "Plataforma"], ["sistema", "Sistema"], ["trilho", "Trilho superior"]] },
-    { id: "mira", regiao: "armaPrincipal", nome: "Mira", colunas: [["tipo", "Tipo"], ["aumento", "Aumento"]] },
-    { id: "magRifle", regiao: "armaPrincipal", nome: "Magazines", multiplo: true, colunas: [["plataforma", "Plataforma"], ["tipo", "Tipo"]] },
-    { id: "bateria", regiao: "armaPrincipal", nome: "Bateria e carregador", multiplo: true, colunas: [["tipo", "Tipo"], ["conector", "Conector"]] },
-    { id: "upgrades", regiao: "armaPrincipal", nome: "Upgrades internos", multiplo: true, colunas: [["tipo", "Tipo"], ["para", "Para"]] },
-    { id: "acessRifle", regiao: "armaPrincipal", nome: "Acessórios", multiplo: true, colunas: [["tipo", "Tipo"]] },
+    { id: "armaPrincipal", curto: "Arma principal", regiao: "armaPrincipal", nome: "Arma principal", base: true, colunas: [["marca", "Marca"], ["plataforma", "Plataforma"], ["sistema", "Sistema"], ["trilho", "Trilho superior"]] },
+    { id: "mira", curto: "Mira", regiao: "armaPrincipal", nome: "Mira", colunas: [["tipo", "Tipo"], ["aumento", "Aumento"]] },
+    { id: "magRifle", curto: "Magazines", regiao: "armaPrincipal", nome: "Magazines", multiplo: true, colunas: [["plataforma", "Plataforma"], ["tipo", "Tipo"]] },
+    { id: "bateria", curto: "Bateria", regiao: "armaPrincipal", nome: "Bateria e carregador", multiplo: true, colunas: [["tipo", "Tipo"], ["conector", "Conector"]] },
+    { id: "upgrades", curto: "Upgrades", regiao: "armaPrincipal", nome: "Upgrades internos", multiplo: true, colunas: [["tipo", "Tipo"], ["para", "Para"]] },
+    { id: "acessRifle", curto: "Acessórios", regiao: "armaPrincipal", nome: "Acessórios", multiplo: true, colunas: [["tipo", "Tipo"]] },
     // Arma secundária
-    { id: "armaSecundaria", regiao: "armaSecundaria", nome: "Pistola", base: true, colunas: [["marca", "Marca"], ["plataforma", "Plataforma"], ["sistema", "Sistema"], ["trilho", "Trilho"]] },
-    { id: "magPistola", regiao: "armaSecundaria", nome: "Magazines de pistola", multiplo: true, colunas: [["plataforma", "Plataforma"]] },
-    { id: "energiaPistola", regiao: "armaSecundaria", nome: "Gás / bateria da pistola", multiplo: true, colunas: [["tipo", "Tipo"], ["para", "Para"]] },
-    { id: "acessPistola", regiao: "armaSecundaria", nome: "Acessórios de pistola", multiplo: true, colunas: [["tipo", "Tipo"]] },
+    { id: "armaSecundaria", curto: "Pistola", regiao: "armaSecundaria", nome: "Pistola", base: true, colunas: [["marca", "Marca"], ["plataforma", "Plataforma"], ["sistema", "Sistema"], ["trilho", "Trilho"]] },
+    { id: "magPistola", curto: "Mags pistola", regiao: "armaSecundaria", nome: "Magazines de pistola", multiplo: true, colunas: [["plataforma", "Plataforma"]] },
+    { id: "energiaPistola", curto: "Gás / bateria", regiao: "armaSecundaria", nome: "Gás / bateria da pistola", multiplo: true, colunas: [["tipo", "Tipo"], ["para", "Para"]] },
+    { id: "acessPistola", curto: "Acessórios", regiao: "armaSecundaria", nome: "Acessórios de pistola", multiplo: true, colunas: [["tipo", "Tipo"]] },
     // Cabeça
-    { id: "oculos", regiao: "cabeca", nome: "Proteção dos olhos", colunas: [["tipo", "Tipo"], ["marca", "Marca"]] },
-    { id: "mascara", regiao: "cabeca", nome: "Proteção do rosto", colunas: [["tipo", "Tipo"]] },
-    { id: "capacete", regiao: "cabeca", nome: "Capacete / boné", colunas: [["tipo", "Tipo"], ["marca", "Marca"]] },
-    { id: "comunicacao", regiao: "cabeca", nome: "Comunicação", multiplo: true, colunas: [["tipo", "Tipo"], ["marca", "Marca"]] },
+    { id: "oculos", curto: "Óculos", regiao: "cabeca", nome: "Proteção dos olhos", colunas: [["tipo", "Tipo"], ["marca", "Marca"]] },
+    { id: "mascara", curto: "Rosto", regiao: "cabeca", nome: "Proteção do rosto", colunas: [["tipo", "Tipo"]] },
+    { id: "capacete", curto: "Capacete", regiao: "cabeca", nome: "Capacete / boné", colunas: [["tipo", "Tipo"], ["marca", "Marca"]] },
+    { id: "comunicacao", curto: "Rádio / fone", regiao: "cabeca", nome: "Comunicação", multiplo: true, colunas: [["tipo", "Tipo"], ["marca", "Marca"]] },
     // Peito
-    { id: "colete", regiao: "peito", nome: "Colete", colunas: [["tipo", "Tipo"], ["marca", "Marca"]] },
-    { id: "pouchPeito", regiao: "peito", nome: "Pouches do colete", multiplo: true, colunas: [["tipo", "Tipo"], ["para", "Para"]] },
+    { id: "colete", curto: "Colete", regiao: "peito", nome: "Colete", colunas: [["tipo", "Tipo"], ["marca", "Marca"]] },
+    { id: "pouchPeito", curto: "Pouches", regiao: "peito", nome: "Pouches do colete", multiplo: true, colunas: [["tipo", "Tipo"], ["para", "Para"]] },
     // Corpo
-    { id: "camisa", regiao: "corpoSuperior", nome: "Camisa / jaqueta", colunas: [["tipo", "Tipo"], ["marca", "Marca"]] },
-    { id: "luvas", regiao: "maos", nome: "Luvas", colunas: [["tipo", "Tipo"], ["marca", "Marca"]] },
-    { id: "cinto", regiao: "cinto", nome: "Cinto", colunas: [["tipo", "Tipo"]] },
-    { id: "coldre", regiao: "cinto", nome: "Coldre", colunas: [["tipo", "Tipo"], ["para", "Para"]] },
-    { id: "pouchCinto", regiao: "cinto", nome: "Módulos do cinto", multiplo: true, colunas: [["tipo", "Tipo"], ["para", "Para"]] },
-    { id: "calca", regiao: "corpoInferior", nome: "Calça", colunas: [["tipo", "Tipo"]] },
-    { id: "joelheira", regiao: "corpoInferior", nome: "Joelheira", colunas: [["tipo", "Tipo"]] },
-    { id: "calcado", regiao: "pes", nome: "Calçado", colunas: [["tipo", "Tipo"]] },
-    { id: "mochila", regiao: "costas", nome: "Mochila", colunas: [["tipo", "Tipo"]] }
+    { id: "camisa", curto: "Camisa", regiao: "corpoSuperior", nome: "Camisa / jaqueta", colunas: [["tipo", "Tipo"], ["marca", "Marca"]] },
+    { id: "luvas", curto: "Luvas", regiao: "maos", nome: "Luvas", colunas: [["tipo", "Tipo"], ["marca", "Marca"]] },
+    { id: "cinto", curto: "Cinto", regiao: "cinto", nome: "Cinto", colunas: [["tipo", "Tipo"]] },
+    { id: "coldre", curto: "Coldre", regiao: "cinto", nome: "Coldre", colunas: [["tipo", "Tipo"], ["para", "Para"]] },
+    { id: "pouchCinto", curto: "Módulos", regiao: "cinto", nome: "Módulos do cinto", multiplo: true, colunas: [["tipo", "Tipo"], ["para", "Para"]] },
+    { id: "calca", curto: "Calça", regiao: "corpoInferior", nome: "Calça", colunas: [["tipo", "Tipo"]] },
+    { id: "joelheira", curto: "Joelheira", regiao: "corpoInferior", nome: "Joelheira", colunas: [["tipo", "Tipo"]] },
+    { id: "calcado", curto: "Calçado", regiao: "pes", nome: "Calçado", colunas: [["tipo", "Tipo"]] },
+    { id: "mochila", curto: "Mochila", regiao: "costas", nome: "Mochila", colunas: [["tipo", "Tipo"]] }
   ];
 
   const P = (vaga, id, nome, a, extra) => Object.assign({ vaga: vaga, id: id, nome: nome, a: a }, extra || {});

@@ -2,14 +2,13 @@
 
 Site self-service para operadores de airsoft montarem o próprio loadout peça por peça e verem onde comprar cada item.
 
-**Como funciona (versão 2), no estilo do meupc.net:**
+**Como funciona (versão 3), com visual de inventário de jogo:**
 
-1. A montagem é uma tabela com uma linha para cada vaga: arma principal, mira, magazines, bateria, pistola, colete, luvas etc. A silhueta serve de atalho para cada região.
-2. Cada vaga abre a lista de produtos, com filtros (marca, plataforma, sistema...), busca e ordenação por coluna.
-3. O site confere a **compatibilidade** com o que já foi escolhido. Ex.: depois de escolher uma AK, os magazines de M4 somem da lista; bateria em arma de mola dá erro; red dot em arma sem trilho dá aviso.
-4. Cada peça escolhida tem links de busca no Mercado Livre, na Amazon, na Shopee e no Google Shopping.
-5. Se a peça não estiver na lista, o operador digita a peça.
-6. O loadout inteiro fica guardado no próprio link: o botão **Copiar link do loadout** serve para salvar ou compartilhar, sem login.
+1. No centro fica o **operador**: cada peça escolhida aparece desenhada no corpo, do capacete ao coldre. A arma muda conforme o modelo (AK com madeira, M4, sniper, shotgun...), o colete conforme o tipo (plate carrier, chest rig) etc.
+2. Ao lado fica o **equipamento**, uma grade de slots (capacete, óculos, arma principal, pistola, colete, cinto, coldre...). Cada slot mostra a foto do produto ou o desenho da peça.
+3. Ao clicar num slot, abre a lista de produtos com filtros, busca, preço e **compatibilidade** (ex.: depois de escolher uma AK, os magazines de M4 somem).
+4. Embaixo fica a **lista de compras**: avisos de compatibilidade, preço de referência, total estimado e links de busca no Mercado Livre, na Amazon, na Shopee e no Google Shopping.
+5. O loadout inteiro fica no próprio link: o botão **Copiar link do loadout** salva e compartilha, sem login.
 
 ## Rodar no seu PC (Windows)
 
@@ -31,6 +30,8 @@ public/                 o site (é o que o Cloudflare publica)
   js/catalogo.js        vagas, produtos e regras de compatibilidade
   js/lojas.js           lojas pesquisadas / links de afiliado
   js/precos.js          preços de referência (você preenche)
+  js/arte.js            desenhos do personagem e das peças (SVG)
+  img/produtos/         fotos de produtos (opcional)
   js/app.js             lógica da página
 functions/api/          rotas do servidor (Cloudflare Pages Functions)
   ml/login.js           liga a conta do Mercado Livre (só administrador)
@@ -39,6 +40,18 @@ functions/api/          rotas do servidor (Cloudflare Pages Functions)
 lib/ml.js               código compartilhado da integração com o ML
 SECURITY.md             como reportar falhas e regras de segurança
 ```
+
+## Fotos dos produtos
+
+No `catalogo.js`, qualquer produto pode ganhar o campo `img`:
+
+```js
+P("oculos", "ess-crossbow", "ESS Crossbow", { ... }, { img: "img/produtos/ess-crossbow.webp" }),
+```
+
+- Arquivo dentro de `public/img/produtos/` (prefira `.webp`, cerca de 300 px de largura) **ou** endereço `https://http2.mlstatic.com/...` (imagens do Mercado Livre).
+- Outros sites são bloqueados de propósito, pela regra de segurança (CSP). Para liberar um novo, inclua o host em `HOSTS_IMAGEM` no `app.js` **e** no `img-src` do `_headers` e do `index.html`.
+- Use só fotos que você tem permissão de usar (suas, de loja parceira ou de fabricante que autorizou). Sem foto, o site mostra o desenho da peça.
 
 ## Preços de referência
 
@@ -94,4 +107,6 @@ Em `js/lojas.js`, `{q}` é trocado pelo termo da peça. Para usar um link de afi
 - [ ] Ampliar o catálogo (mais marcas e modelos) e conferir as especificações
 - [x] Preços de referência e total estimado
 - [ ] Preços automáticos pela API do Mercado Livre (aguardando validação da conta no ML)
+- [x] Personagem com as peças desenhadas no corpo (estilo inventário)
+- [ ] Fotos dos produtos (via API do ML ou lojas parceiras)
 - [ ] Manequim 3D que gira para ver as peças no corpo

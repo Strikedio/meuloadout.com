@@ -1,0 +1,2 @@
+Fotos de produtos (opcional). Coloque aqui arquivos .webp/.png/.jpg e aponte no catalogo.js com img: "img/produtos/nome.webp".
+Use apenas fotos que voce tem permissao de usar (suas, da loja parceira ou do fabricante com autorizacao).
