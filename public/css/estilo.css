@@ -182,6 +182,31 @@ body {
 }
 .slot-remover:hover { color: #ff9b8a; border-color: #ff9b8a; }
 
+/* ---------- Operador 3D ---------- */
+.titulo-dir { display: flex; align-items: center; gap: 8px; }
+.modo-vista { display: inline-flex; border: 1px solid #4a5136; border-radius: 3px; overflow: hidden; }
+.modo-vista button {
+  font: inherit; font-family: var(--fonte); font-size: 11px; letter-spacing: 0.06em;
+  padding: 3px 9px; border: 0; background: transparent; color: var(--texto-suave); cursor: pointer;
+}
+.modo-vista button[aria-pressed="true"] { background: var(--areia); color: #1a1a10; font-weight: 700; }
+.modo-vista button:focus-visible { outline: 2px solid var(--laranja); outline-offset: -2px; }
+.personagem3d {
+  position: relative;
+  height: min(72vh, 640px);
+  background: radial-gradient(60% 45% at 50% 45%, rgba(200, 168, 90, 0.08), transparent 70%);
+}
+.personagem3d[hidden], .personagem[hidden] { display: none; }
+.ml-canvas { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; }
+.ml-canvas:active { cursor: grabbing; }
+.carregando3d, .dica3d {
+  position: absolute; left: 0; right: 0; text-align: center; pointer-events: none;
+  font-size: 11px; color: var(--texto-suave); letter-spacing: 0.04em;
+}
+.carregando3d { top: 45%; font-size: 13px; color: var(--areia); }
+.carregando3d[hidden] { display: none; }
+.dica3d { bottom: 8px; }
+
 /* ---------- Lista de compras ---------- */
 .lista-compras { max-width: 1344px; margin: 18px auto 0; }
 @media (min-width: 1401px) { .lista-compras { max-width: 1344px; } }
@@ -427,6 +452,7 @@ input::placeholder { color: #6f705e; }
   .inventario { grid-template-columns: 1fr; }
   .painel-personagem { position: static; }
   .ml-personagem { height: 440px; }
+  .personagem3d { height: 460px; }
   .lista-compras { margin-left: 12px; margin-right: 12px; }
 }
 @media (max-width: 700px) {
@@ -435,6 +461,7 @@ input::placeholder { color: #6f705e; }
   .barra .acoes .btn-principal { flex: 1; }
   .barra .campo-nome { max-width: none; }
   .ml-personagem { height: 380px; }
+  .personagem3d { height: 420px; }
   .slot-grade { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 6px; }
   .slot { height: 104px; }
   .dica-slots { display: none; }

@@ -320,10 +320,41 @@
     return r;
   }
 
+  // ---------- Modo de visualização: 3D (three.js) ou 2D (SVG) ----------
+  const CHAVE_VISTA = "meuloadout:vista";
+  let modoVista = "3d", pronto3d = false, iniciando3d = false;
+  try { if (localStorage.getItem(CHAVE_VISTA) === "2d") modoVista = "2d"; } catch (e) { /* ignora */ }
+
+  function aplicarModoVista() {
+    const usa3d = modoVista === "3d" && !!window.Operador3D && window.Operador3D.disponivel !== false;
+    $("#personagem").hidden = usa3d && pronto3d;
+    $("#personagem3d").hidden = !usa3d;
+    $("#carregando3d").hidden = pronto3d;
+    document.querySelectorAll(".modo-vista button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.modo === (usa3d ? "3d" : "2d"))));
+    if (usa3d && pronto3d && window.Operador3D.redimensionar) window.Operador3D.redimensionar();
+  }
+  async function ativar3D() {
+    aplicarModoVista();
+    if (modoVista !== "3d" || pronto3d || iniciando3d || !window.Operador3D) return;
+    if (!window.Operador3D.disponivel) { modoVista = "2d"; aplicarModoVista(); return; }
+    iniciando3d = true;
+    pronto3d = await window.Operador3D.iniciar($("#personagem3d"));
+    iniciando3d = false;
+    if (!pronto3d) { modoVista = "2d"; mostrarAviso("O 3D não funcionou neste aparelho; mostrando o desenho 2D."); }
+    aplicarModoVista();
+    renderInventario();
+  }
+  function trocarVista(m) {
+    modoVista = m;
+    try { localStorage.setItem(CHAVE_VISTA, m); } catch (e) { /* ignora */ }
+    if (m === "3d") ativar3D(); else aplicarModoVista();
+  }
+
   function renderInventario() {
     if (!ARTE) return;
     const pv = porVaga();
     $("#personagem").innerHTML = ARTE.personagem(pv); // SVG estático, sem texto do usuário
+    if (pronto3d && window.Operador3D) window.Operador3D.atualizar(pv);
 
     // Selo de compatibilidade ao lado do título
     const conf = conflitosGerais(), nivel = pior(conf);
@@ -584,6 +615,9 @@
   // ---------- Início ----------
   function iniciar() {
     if (ARTE) $("#ml-defs").innerHTML = ARTE.DEFS; // padrões de camuflagem (SVG estático)
+    document.querySelectorAll(".modo-vista button").forEach((b) => b.addEventListener("click", () => trocarVista(b.dataset.modo)));
+    window.addEventListener("operador3d-carregado", () => { if (modoVista === "3d") ativar3D(); });
+    if (window.Operador3D && modoVista === "3d") ativar3D();
 
     const campoNome = $("#nome-loadout");
     campoNome.addEventListener("input", () => { estado.nome = textoLimpo(campoNome.value, 60); salvar(); });

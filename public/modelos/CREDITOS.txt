@@ -1,0 +1,14 @@
+Modelos 3D usados no meuloadout.com
+===================================
+
+operador.glb
+  Base: "Universal Base Characters" (versão Standard) — Quaternius — https://quaternius.com
+  Licença: CC0 1.0 Universal (domínio público). Modificado: texturas removidas, sobrancelhas/olhos removidos,
+  material de manequim; as roupas são pintadas em tempo real pelo site.
+
+armas/*.glb
+  Base: "Ultimate Gun Pack" — Quaternius — https://quaternius.itch.io/50-lowpoly-guns
+  Licença: CC0 1.0 Universal (domínio público). Convertidos de OBJ para GLB e redimensionados para metros.
+
+Equipamento (capacete, colete, cinto, coldre, mochila etc.): modelado em código em js/operador3d.js (original).
+Biblioteca 3D: three.js r170 — licença MIT (ver vendor/three/LICENSE.txt).

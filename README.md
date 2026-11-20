@@ -4,7 +4,7 @@ Site self-service para operadores de airsoft montarem o próprio loadout peça p
 
 **Como funciona (versão 3), com visual de inventário de jogo:**
 
-1. No centro fica o **operador**: cada peça escolhida aparece desenhada no corpo, do capacete ao coldre. A arma muda conforme o modelo (AK com madeira, M4, sniper, shotgun...), o colete conforme o tipo (plate carrier, chest rig) etc.
+1. No centro fica o **operador em 3D** (gira com o mouse ou o dedo; botão 2D para o desenho plano): cada peça escolhida aparece desenhada no corpo, do capacete ao coldre. A arma muda conforme o modelo (AK com madeira, M4, sniper, shotgun...), o colete conforme o tipo (plate carrier, chest rig) etc.
 2. Ao lado fica o **equipamento**, uma grade de slots (capacete, óculos, arma principal, pistola, colete, cinto, coldre...). Cada slot mostra a foto do produto ou o desenho da peça.
 3. Ao clicar num slot, abre a lista de produtos com filtros, busca, preço e **compatibilidade** (ex.: depois de escolher uma AK, os magazines de M4 somem).
 4. Embaixo fica a **lista de compras**: avisos de compatibilidade, preço de referência, total estimado e links de busca no Mercado Livre, na Amazon, na Shopee e no Google Shopping.
@@ -30,7 +30,10 @@ public/                 o site (é o que o Cloudflare publica)
   js/catalogo.js        vagas, produtos e regras de compatibilidade
   js/lojas.js           lojas pesquisadas / links de afiliado
   js/precos.js          preços de referência (você preenche)
-  js/arte.js            desenhos do personagem e das peças (SVG)
+  js/arte.js            desenhos do personagem e das peças (SVG, modo 2D)
+  js/operador3d.js      operador em 3D (three.js): pose, roupas, equipamento e armas
+  modelos/              operador.glb e armas/*.glb (Quaternius, CC0) — ver CREDITOS.txt
+  vendor/three/         biblioteca three.js (MIT)
   img/produtos/         fotos de produtos (opcional)
   js/app.js             lógica da página
 functions/api/          rotas do servidor (Cloudflare Pages Functions)
@@ -109,4 +112,5 @@ Em `js/lojas.js`, `{q}` é trocado pelo termo da peça. Para usar um link de afi
 - [ ] Preços automáticos pela API do Mercado Livre (aguardando validação da conta no ML)
 - [x] Personagem com as peças desenhadas no corpo (estilo inventário)
 - [ ] Fotos dos produtos (via API do ML ou lojas parceiras)
-- [ ] Manequim 3D que gira para ver as peças no corpo
+- [x] Operador 3D que gira, com as peças no corpo
+- [ ] Modelos 3D mais detalhados para o equipamento (comprados com licença para web ou encomendados)
