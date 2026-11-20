@@ -267,11 +267,9 @@
         el("table", { class: "tabela-montagem" }, corpo)));
     });
 
-    // Marca a silhueta e os atalhos
-    const comItem = new Set(estado.itens.map((x) => vagaPorId.get(x.v).regiao));
-    document.querySelectorAll("[data-cat]").forEach((n) => n.classList.toggle("tem-item", comItem.has(n.dataset.cat)));
     renderCompat();
     renderTotal();
+    renderInventario();
   }
 
   // ---------- Ações no loadout ----------
@@ -290,26 +288,114 @@
     renderMontagem();
   }
 
-  // ---------- Silhueta ----------
-  function irParaRegiao(regId) {
-    document.querySelectorAll("[data-cat]").forEach((n) => n.classList.toggle("ativa", n.dataset.cat === regId));
-    const alvo = document.getElementById("reg-" + regId);
-    if (!alvo) return;
-    alvo.scrollIntoView({ behavior: "smooth", block: "start" });
-    alvo.classList.remove("piscar");
-    void alvo.offsetWidth;
-    alvo.classList.add("piscar");
+  // ---------- Inventário (personagem + slots, estilo jogo) ----------
+  const ARTE = window.MEULOADOUT_ARTE;
+  const GRUPOS_SLOTS = [
+    { nome: "Cabeça", vagas: ["capacete", "oculos", "mascara", "comunicacao"] },
+    { nome: "Armas", vagas: ["armaPrincipal", "armaSecundaria"] },
+    { nome: "Arma principal · acessórios", vagas: ["mira", "magRifle", "bateria", "upgrades", "acessRifle"] },
+    { nome: "Pistola · acessórios", vagas: ["magPistola", "energiaPistola", "acessPistola"] },
+    { nome: "Tronco", vagas: ["camisa", "colete", "pouchPeito", "luvas", "mochila"] },
+    { nome: "Cintura e pernas", vagas: ["cinto", "coldre", "pouchCinto", "calca", "joelheira", "calcado"] },
+  ];
+  const SLOT_LARGO = new Set(["armaPrincipal"]);
+  // Imagens de produto: só arquivos do próprio site (img/...) ou de hosts liberados na CSP
+  const HOSTS_IMAGEM = ["http2.mlstatic.com"];
+  function imagemDe(prod) {
+    if (!prod || typeof prod.img !== "string") return null;
+    if (/^img\/[\w\-./]+\.(webp|png|jpe?g|svg)$/i.test(prod.img) && !prod.img.includes("..")) return prod.img;
+    try {
+      const u = new URL(prod.img);
+      return u.protocol === "https:" && HOSTS_IMAGEM.includes(u.hostname) ? u.href : null;
+    } catch (e) { return null; }
   }
-  function montarSilhueta() {
-    const atalhos = $("#atalhos");
-    DADOS.regioes.forEach((r) =>
-      atalhos.append(el("button", { type: "button", class: "atalho", "data-cat": r.id, text: r.nome, onclick: () => irParaRegiao(r.id) })));
-    document.querySelectorAll("#silhueta .regiao").forEach((n) => {
-      n.addEventListener("click", () => irParaRegiao(n.dataset.cat));
-      n.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); irParaRegiao(n.dataset.cat); }
-      });
+
+  // { vaga: [produto...] } — peça digitada à mão entra como "genérica" só para o desenho
+  function porVaga() {
+    const r = {};
+    estado.itens.forEach((x) => {
+      const p = x.p ? prodPorId.get(x.p) : { id: "", nome: "", a: {}, manual: true };
+      (r[x.v] = r[x.v] || []).push(p);
     });
+    return r;
+  }
+
+  function renderInventario() {
+    if (!ARTE) return;
+    const pv = porVaga();
+    $("#personagem").innerHTML = ARTE.personagem(pv); // SVG estático, sem texto do usuário
+
+    // Selo de compatibilidade ao lado do título
+    const conf = conflitosGerais(), nivel = pior(conf);
+    const chip = $("#status-compat");
+    chip.className = "status-compat sc-" + nivel;
+    chip.textContent = !estado.itens.length ? "" : nivel === "ok" ? "✓ Compatível" : nivel === "erro" ? "✕ Incompatível" : "⚠ Atenção";
+
+    const raiz = $("#slots");
+    raiz.innerHTML = "";
+    GRUPOS_SLOTS.forEach((g) => {
+      const grade = el("div", { class: "slot-grade" });
+      g.vagas.forEach((vagaId) => grade.append(cartaoSlot(vagaId, pv)));
+      raiz.append(el("section", { class: "slot-grupo" }, el("h3", { text: g.nome }), grade));
+    });
+  }
+
+  function cartaoSlot(vagaId, pv) {
+    const vaga = vagaPorId.get(vagaId);
+    const itens = estado.itens.filter((x) => x.v === vagaId);
+    const prods = pv[vagaId] || [];
+    const prim = itens[0];
+    const primProd = prim && prim.p ? prodPorId.get(prim.p) : null;
+    const nomePrim = prim ? (primProd ? primProd.nome : prim.m) : "";
+    const problemas = prods.filter((p) => !p.manual).flatMap((p) => conflitosDe(p));
+    const nivel = pior(problemas);
+
+    const figura = el("span", { class: "slot-figura" });
+    const src = imagemDe(primProd);
+    if (src) {
+      const img = el("img", { src: src, alt: "", loading: "lazy", decoding: "async", referrerpolicy: "no-referrer" });
+      img.addEventListener("error", () => { figura.innerHTML = ARTE.icone(vagaId, prods, pv); }, { once: true });
+      figura.append(img);
+    } else {
+      figura.innerHTML = ARTE.icone(vagaId, prods, pv); // SVG estático
+    }
+
+    let extra = "";
+    if (itens.length > 1) extra = "+" + (itens.length - 1);
+    else if (primProd) { const pr = precoDe(primProd.id); if (pr) extra = moeda.format(pr.valor); }
+
+    const classes = ["slot"];
+    if (SLOT_LARGO.has(vagaId)) classes.push("slot-largo");
+    if (itens.length) classes.push("cheio");
+    if (nivel !== "ok") classes.push("slot-" + nivel);
+
+    const abrir = el("button", {
+      type: "button",
+      class: "slot-abrir",
+      "aria-label": itens.length ? vaga.nome + ": " + nomePrim + (itens.length > 1 ? " e mais " + (itens.length - 1) : "") + ". Trocar ou adicionar" : "Escolher " + vaga.nome.toLowerCase(),
+      title: problemas.map((p) => p.texto).join("\n") || null,
+      onclick: () => abrirSeletor(vagaId),
+    },
+      el("span", { class: "slot-rotulo", text: vaga.curto || vaga.nome }),
+      figura,
+      el("span", { class: "slot-nome", text: itens.length ? nomePrim : "Vazio" }),
+      extra ? el("span", { class: "slot-extra", text: extra }) : null,
+      nivel !== "ok" ? el("span", { class: "slot-alerta", "aria-hidden": "true", text: nivel === "erro" ? "✕" : "!" }) : null);
+
+    const remover = itens.length ? el("button", {
+      type: "button",
+      class: "slot-remover",
+      "aria-label": "Remover " + (itens.length > 1 ? "todas as peças de " + vaga.nome.toLowerCase() : nomePrim),
+      title: "Remover",
+      text: "×",
+      onclick: () => {
+        estado.itens = estado.itens.filter((x) => x.v !== vagaId);
+        salvar();
+        renderMontagem();
+      },
+    }) : null;
+
+    return el("div", { class: classes.join(" "), "data-vaga": vagaId }, abrir, remover);
   }
 
   // ---------- Seletor de produtos ----------
@@ -497,7 +583,7 @@
 
   // ---------- Início ----------
   function iniciar() {
-    montarSilhueta();
+    if (ARTE) $("#ml-defs").innerHTML = ARTE.DEFS; // padrões de camuflagem (SVG estático)
 
     const campoNome = $("#nome-loadout");
     campoNome.addEventListener("input", () => { estado.nome = textoLimpo(campoNome.value, 60); salvar(); });
