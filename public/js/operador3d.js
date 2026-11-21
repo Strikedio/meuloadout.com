@@ -252,6 +252,213 @@ function bolsaCarregador(w, h, d, corPano) {
   return g;
 }
 
+
+// ---------- Capacete FAST (estilo "Maritime", corte alto) ----------
+// Casco = elipsoide ajustado à cabeça do manequim (centro 0, 1.70, -0.006).
+// A borda inferior muda com o ângulo: alta na frente e nas orelhas, baixa na nuca.
+const CASCO = { cx: 0, cy: 1.70, cz: -0.006, ax: 0.098, ay: 0.126, az: 0.121, esp: 0.008 };
+const BORDA_FAST = [[0, 1.742], [35, 1.736], [62, 1.722], [80, 1.728], [100, 1.73], [118, 1.712], [138, 1.680], [160, 1.664], [180, 1.660]];
+function bordaFast(grau) {
+  const g = Math.min(180, Math.abs(grau));
+  for (let i = 1; i < BORDA_FAST.length; i++) {
+    const [g0, y0] = BORDA_FAST[i - 1], [g1, y1] = BORDA_FAST[i];
+    if (g <= g1) { const t = (g - g0) / (g1 - g0); const s = t * t * (3 - 2 * t); return y0 + (y1 - y0) * s; }
+  }
+  return BORDA_FAST[BORDA_FAST.length - 1][1];
+}
+// ponto na superfície do casco: th = ângulo em volta (0 = frente, +90 = lado esquerdo do boneco/+x), y = altura, off = afastamento
+function noCasco(th, y, off, enc) {
+  const k = 1 - (enc || 0);
+  const ax = CASCO.ax * k, ay = CASCO.ay * k, az = CASCO.az * k;
+  const c = Math.max(-1, Math.min(1, (y - CASCO.cy) / ay));
+  const sf = Math.sqrt(1 - c * c);
+  const p = new THREE.Vector3(Math.sin(th) * ax * sf, CASCO.cy + c * ay, CASCO.cz + Math.cos(th) * az * sf);
+  const n = new THREE.Vector3(p.x / (ax * ax), (p.y - CASCO.cy) / (ay * ay), (p.z - CASCO.cz) / (az * az)).normalize();
+  if (off) p.addScaledVector(n, off);
+  return { p, n };
+}
+// malha que acompanha o casco: th0..th1 (graus) e de cima (fração "v" do polo até a borda)
+function superficieCasco(material, o) {
+  const N = o.segU || 64, M = o.segV || 24;
+  const pos = [], uv = [], idx = [];
+  for (let j = 0; j <= M; j++) {
+    for (let i = 0; i <= N; i++) {
+      const grau = o.th0 + (o.th1 - o.th0) * (i / N);
+      const th = grau * Math.PI / 180;
+      const yTopo = o.yTopo != null ? o.yTopo : CASCO.cy + CASCO.ay * (1 - (o.enc || 0));
+      const yBase = o.yBase != null ? (typeof o.yBase === "function" ? o.yBase(grau) : o.yBase) : bordaFast(grau);
+      const y = yTopo + (yBase - yTopo) * (j / M);
+      const { p } = noCasco(th, y, o.off || 0, o.enc);
+      pos.push(p.x, p.y, p.z);
+      uv.push((grau / 360) * (o.repU || 1), (y - CASCO.cy) * (o.repV || 1));
+    }
+  }
+  for (let j = 0; j < M; j++) for (let i = 0; i < N; i++) {
+    const a0 = j * (N + 1) + i, b0 = a0 + N + 1;
+    if (o.inverter) idx.push(a0, a0 + 1, b0, a0 + 1, b0 + 1, b0); else idx.push(a0, b0, a0 + 1, a0 + 1, b0, b0 + 1);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  return malha(geo, material);
+}
+// textura granulada do casco e felpuda do velcro
+function texturaGrao(chave, base, var1, felpa) {
+  if (TEX.has(chave)) return TEX.get(chave);
+  const N = 256, c = canvas(N), g = c.getContext("2d"), b = canvas(N), gb = b.getContext("2d");
+  g.fillStyle = base; g.fillRect(0, 0, N, N); gb.fillStyle = "#808080"; gb.fillRect(0, 0, N, N);
+  const qtd = felpa ? 9000 : 5000;
+  for (let i = 0; i < qtd; i++) {
+    const x = rnd() * N, y = rnd() * N, r = felpa ? 0.6 + rnd() * 1.4 : 0.5 + rnd() * 1.1, v = rnd();
+    g.fillStyle = v > 0.5 ? "rgba(255,255,255," + (var1 * rnd()) + ")" : "rgba(0,0,0," + (var1 * 1.4 * rnd()) + ")";
+    g.fillRect(x, y, r, r);
+    const t = Math.floor(80 + v * 120); gb.fillStyle = "rgb(" + t + "," + t + "," + t + ")"; gb.fillRect(x, y, r, r);
+  }
+  const map = new THREE.CanvasTexture(c), bump = new THREE.CanvasTexture(b);
+  map.colorSpace = THREE.SRGBColorSpace;
+  [map, bump].forEach((t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4; });
+  const r = { map, bump };
+  TEX.set(chave, r);
+  return r;
+}
+function materialCasco(cor) {
+  const t = texturaGrao("casco" + cor, cor, 0.07, false);
+  const map = t.map.clone(), bump = t.bump.clone();
+  [map, bump].forEach((x) => { x.repeat.set(6, 22); x.needsUpdate = true; });
+  return new THREE.MeshStandardMaterial({ map, bumpMap: bump, bumpScale: 0.35, roughness: 0.78, metalness: 0.02, envMapIntensity: 0.55 });
+}
+function materialVelcro(cor) {
+  const t = texturaGrao("velcro" + cor, cor, 0.22, true);
+  const map = t.map.clone(), bump = t.bump.clone();
+  [map, bump].forEach((x) => { x.repeat.set(10, 40); x.needsUpdate = true; });
+  return new THREE.MeshStandardMaterial({ map, bumpMap: bump, bumpScale: 2.2, roughness: 1, metalness: 0, envMapIntensity: 0.2, polygonOffset: true, polygonOffsetFactor: -2 });
+}
+// peça rígida (caixa) encostada no casco, orientada pela normal e pela direção "ao longo"
+function naSuperficie(obj, th, y, off, giro) {
+  const { p, n } = noCasco(th, y, off);
+  const lado = new THREE.Vector3(Math.cos(th), 0, -Math.sin(th));
+  const cima = new THREE.Vector3().crossVectors(n, lado).normalize();
+  lado.crossVectors(cima, n).normalize();
+  const m = new THREE.Matrix4().makeBasis(lado, cima, n);
+  obj.quaternion.setFromRotationMatrix(m);
+  if (giro) obj.rotateZ(giro);
+  obj.position.copy(p);
+  return obj;
+}
+function corMais(cor, f) { const c = new THREE.Color(cor); c.multiplyScalar(f); return "#" + c.getHexString(); }
+
+function capaceteFast(p) {
+  const g = new THREE.Group();
+  let cor = "#6d6350", corVelcro = "#5c4f33", corFita = "#7a6644";
+  if (nomeTem(p, /Emerson|ranger|verde|green/i)) { cor = "#5d6248"; corVelcro = "#4d5438"; corFita = "#5b623e"; }
+  if (nomeTem(p, /preto|black/i)) { cor = "#2b2d29"; corVelcro = "#1f211d"; corFita = "#2b2e27"; }
+  const casco = materialCasco(cor);
+  const trilhoMat = plastico(corMais(cor, 0.9), { roughness: 0.68 });
+  const escuro = plastico("#151613", { roughness: 0.6 });
+  const velcro = materialVelcro(corVelcro);
+  const fita = tecido(corFita, { rep: 3, bump: 0.8 });
+
+  // casco: face externa, face interna (forro escuro) e borda arredondada
+  g.add(superficieCasco(casco, { th0: -180, th1: 180, segU: 96, segV: 36 }));
+  g.add(superficieCasco(plastico("#1b1c19", { roughness: 0.95, side: THREE.DoubleSide }), { th0: -180, th1: 180, segU: 72, segV: 24, enc: CASCO.esp / CASCO.ay, inverter: true }));
+  const bordaPts = [];
+  for (let i = 0; i <= 96; i++) { const gr = -180 + 360 * i / 96; bordaPts.push(noCasco(gr * Math.PI / 180, bordaFast(gr), -CASCO.esp * 0.45).p); }
+  const curvaBorda = new THREE.CatmullRomCurve3(bordaPts, true);
+  g.add(malha(new THREE.TubeGeometry(curvaBorda, 160, CASCO.esp * 0.55, 8, true), casco));
+  // almofadas internas (aparecem por baixo)
+  [[0, 1.775], [180, 1.72], [90, 1.75], [-90, 1.75]].forEach(([gr, y]) => {
+    g.add(naSuperficie(caixa(0.05, 0.035, 0.016, plastico("#2a2b28", { roughness: 1 }), 0.012), gr * Math.PI / 180, y, -CASCO.esp - 0.008));
+  });
+
+  // velcro: coroa, faixas laterais no alto e faixa traseira
+  g.add(superficieCasco(velcro, { th0: -180, th1: 180, segU: 64, segV: 8, yBase: 1.814, off: 0.0016, repU: 2, repV: 8 }));
+  g.add(superficieCasco(velcro, { th0: -24, th1: 24, segU: 10, segV: 8, yTopo: 1.816, yBase: 1.782, off: 0.0016, repU: 2, repV: 8 }));
+  [-1, 1].forEach((l) => {
+    g.add(superficieCasco(velcro, { th0: l > 0 ? 58 : -122, th1: l > 0 ? 122 : -58, segU: 16, segV: 6, yTopo: 1.80, yBase: 1.764, off: 0.0016, repU: 2, repV: 8 }));
+  });
+  g.add(superficieCasco(velcro, { th0: 142, th1: 218, segU: 20, segV: 6, yTopo: 1.728, yBase: 1.694, off: 0.0016, repU: 2, repV: 8 }));
+
+  // trilhos laterais (estilo ARC): horizontal e descendo para trás
+  [-1, 1].forEach((l) => {
+    const pts = [];
+    for (let gr = 56; gr <= 112; gr += 4) pts.push([gr, 1.744]);
+    for (let gr = 116; gr <= 140; gr += 4) { const t = (gr - 112) / 28; pts.push([gr, 1.744 - t * t * 0.05]); }
+    pts.forEach(([gr, y], i) => {
+      const th = l * gr * Math.PI / 180;
+      const prox = pts[Math.min(i + 1, pts.length - 1)], ant = pts[Math.max(i - 1, 0)];
+      const inc = Math.atan2(prox[1] - ant[1], (prox[0] - ant[0]) * Math.PI / 180 * 0.1) * l;
+      const peca = caixa(0.017, 0.03, 0.009, trilhoMat, 0.004);
+      g.add(naSuperficie(peca, th, y, 0.003, -inc));
+      if (i % 2 === 0 && gr < 136) {
+        g.add(naSuperficie(caixa(0.004, 0.012, 0.004, escuro, 0.001), th, y, 0.0075, -inc));
+      }
+      if (gr % 8 === 0) {
+        g.add(naSuperficie(caixa(0.0045, 0.0022, 0.003, escuro, 0.0008), th, y + 0.0125, 0.007, -inc));
+        g.add(naSuperficie(caixa(0.0045, 0.0022, 0.003, escuro, 0.0008), th, y - 0.0125, 0.007, -inc));
+      }
+    });
+    // parafusos
+    [[66, 1.744], [124, 1.735]].forEach(([gr, y]) => {
+      const pf = malha(new THREE.CylinderGeometry(0.0065, 0.0065, 0.004, 16), metal("#202220"));
+      pf.rotation.x = Math.PI / 2;
+      const grupo = new THREE.Group(); grupo.add(pf);
+      g.add(naSuperficie(grupo, l * gr * Math.PI / 180, y, 0.0085));
+    });
+    // presilha frontal do trilho (onde o cordão prende)
+    g.add(naSuperficie(caixa(0.012, 0.016, 0.01, escuro, 0.003), l * 50 * Math.PI / 180, 1.738, 0.004));
+  });
+
+  // shroud frontal (suporte de NVG)
+  const shroud = new THREE.Group();
+  shroud.add(em(caixa(0.07, 0.05, 0.007, trilhoMat, 0.008), 0, 0, 0));
+  shroud.add(em(caixa(0.044, 0.026, 0.006, plastico("#24231f", { roughness: 0.5 }), 0.004), 0, -0.002, 0.004));
+  shroud.add(em(caixa(0.05, 0.008, 0.009, trilhoMat, 0.003), 0, 0.017, 0.004));
+  shroud.add(em(caixa(0.05, 0.007, 0.009, trilhoMat, 0.003), 0, -0.02, 0.004));
+  [-1, 1].forEach((l) => {
+    shroud.add(em(caixa(0.012, 0.042, 0.011, trilhoMat, 0.004), l * 0.03, -0.002, 0.004));
+    const pino = malha(new THREE.CylinderGeometry(0.0045, 0.0045, 0.006, 14), plastico(corMais(cor, 0.85)));
+    pino.rotation.x = Math.PI / 2; pino.position.set(l * 0.042, 0.018, 0.002); shroud.add(pino);
+  });
+  g.add(naSuperficie(shroud, 0, 1.772, 0.004));
+
+  // cordão elástico (bungee) contornando a frente
+  const cord = [];
+  for (let gr = -52; gr <= 52; gr += 4) cord.push(noCasco(gr * Math.PI / 180, bordaFast(gr) + 0.006 + Math.abs(gr) * 0.00008, 0.0045).p);
+  g.add(malha(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(cord), 60, 0.0022, 6, false), plastico(corFita, { roughness: 0.9 })));
+  [-1, 1].forEach((l) => g.add(naSuperficie(caixa(0.008, 0.006, 0.006, escuro, 0.002), l * 22 * Math.PI / 180, bordaFast(22) + 0.008, 0.006)));
+
+  // regulagem traseira (dial)
+  const dial = new THREE.Group();
+  const roda = malha(new THREE.CylinderGeometry(0.017, 0.018, 0.012, 20), plastico(corMais(cor, 0.85), { roughness: 0.7 }));
+  roda.rotation.x = Math.PI / 2; dial.add(roda);
+  for (let i = 0; i < 10; i++) { const r = caixa(0.003, 0.012, 0.004, plastico(corMais(cor, 0.7)), 0.001); r.position.set(0, 0, 0.007); r.rotation.z = i * Math.PI / 5; dial.add(r); }
+  dial.position.set(0, 1.648, CASCO.cz - CASCO.az * 0.83); dial.rotation.y = Math.PI; dial.rotation.x = 0.35;
+  g.add(dial);
+  g.add(barraEntre([-0.045, 1.66, -0.105], [0.045, 1.66, -0.105], 0.012, 0.004, fita));
+
+  // jugular: tiras da frente e de trás descendo até a fivela e o queixo
+  [-1, 1].forEach((l) => {
+    const dentroF = noCasco(l * 62 * Math.PI / 180, bordaFast(62) + 0.004, -CASCO.esp - 0.004).p;
+    const dentroT = noCasco(l * 128 * Math.PI / 180, bordaFast(128) + 0.004, -CASCO.esp - 0.004).p;
+    const juncao = [l * 0.072, 1.622, 0.014];
+    const queixo = [l * 0.04, 1.58, 0.06];
+    g.add(barraEntre([dentroF.x, dentroF.y, dentroF.z], [l * 0.084, 1.665, 0.038], 0.014, 0.003, fita));
+    g.add(barraEntre([l * 0.084, 1.665, 0.038], juncao, 0.014, 0.003, fita));
+    g.add(barraEntre([dentroT.x, dentroT.y, dentroT.z], [l * 0.084, 1.66, -0.035], 0.014, 0.003, fita));
+    g.add(barraEntre([l * 0.084, 1.66, -0.035], juncao, 0.014, 0.003, fita));
+    g.add(barraEntre(juncao, queixo, 0.016, 0.003, fita));
+    g.add(em(caixa(0.012, 0.02, 0.007, plastico(corMais(corFita, 0.7)), 0.003), juncao[0], juncao[1] + 0.004, juncao[2], 0, l * 1.45, 0));
+    g.add(em(caixa(0.012, 0.016, 0.006, plastico(corMais(corFita, 0.7)), 0.003), l * 0.083, 1.69, 0.026, 0, l * 1.45, 0));
+  });
+  // concha do queixo
+  const arco = [[-0.04, 1.58, 0.06], [-0.024, 1.574, 0.083], [0, 1.571, 0.092], [0.024, 1.574, 0.083], [0.04, 1.58, 0.06]];
+  for (let i = 0; i < arco.length - 1; i++) g.add(barraEntre(arco[i], arco[i + 1], 0.02, 0.004, fita));
+  g.add(em(caixa(0.018, 0.012, 0.008, plastico(corMais(corFita, 0.6)), 0.003), 0.03, 1.577, 0.076, 0, 0.6, 0));
+  return g;
+}
+
 const PECA = {
   capacete(ps) {
     const p = ps[0], g = new THREE.Group();
@@ -263,22 +470,7 @@ const PECA = {
       g.add(em(caixa(0.07, 0.04, 0.004, tecido(COR.preto, { bump: 2 }), 0.006), 0, 1.79, 0.095, -0.45));
       return g;
     }
-    const cor = nomeTem(p, /Emerson/) ? COR.ranger : COR.tan;
-    const casco = malha(new THREE.SphereGeometry(0.124, 48, 18, 0, Math.PI * 2, 0, Math.PI * 0.5), plastico(cor, { roughness: 0.72 }));
-    casco.scale.set(1, 0.97, 1.1);
-    g.add(em(casco, 0, 1.70, -0.006));
-    const borda = malha(new THREE.TorusGeometry(0.124, 0.005, 6, 48), plastico(COR.preto));
-    borda.scale.set(1, 1.1, 1);
-    g.add(em(borda, 0, 1.70, -0.006, Math.PI / 2));
-    [-1, 1].forEach((l) => {
-      g.add(em(caixa(0.016, 0.042, 0.13, plastico(COR.grafite), 0.005), l * 0.122, 1.722, -0.005, 0, 0, l * 0.18));
-      for (let i = -2; i <= 2; i++) g.add(em(caixa(0.004, 0.044, 0.008, plastico("#111"), 0.001), l * 0.131, 1.724, i * 0.024, 0, 0, l * 0.18));
-      g.add(em(caixa(0.05, 0.035, 0.006, tecido(COR.preto, { bump: 2 }), 0.008), l * 0.07, 1.80, -0.02, 0, 0, l * 0.55));
-    });
-    g.add(em(caixa(0.06, 0.04, 0.02, metal("#2a2c28"), 0.006), 0, 1.785, 0.118, -0.55));
-    g.add(em(caixa(0.075, 0.05, 0.006, tecido(COR.preto, { bump: 2 }), 0.008), 0, 1.83, -0.04, 0.25));
-    g.add(em(caixa(0.06, 0.045, 0.03, tecido(cor === COR.tan ? COR.coyote : COR.ranger), 0.01), 0, 1.70, -0.14));
-    return g;
+    return capaceteFast(p);
   },
   oculos(ps) {
     const goggle = a(ps[0], "tipo") === "Goggle" || nomeTem(ps[0], /mesh/i);
